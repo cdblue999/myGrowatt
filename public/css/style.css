@@ -397,7 +397,165 @@ body {
 .toast-success .toast-icon { background: rgba(52,211,153,0.2); color: var(--green); }
 .toast-success { border-color: rgba(52,211,153,0.3); }
 
-/* === Error State === */
+/* === Device Settings Modal === */
+.modal { position: fixed; inset: 0; z-index: 5000; display: flex; align-items: center; justify-content: center; }
+.modal.hidden { display: none; }
+.modal-overlay { position: absolute; inset: 0; background: rgba(11,14,20,0.8); backdrop-filter: blur(2px); }
+.modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 620px;
+  max-height: 80vh;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h3 { font-size: 1.1rem; font-weight: 600; }
+.modal-close { background: none; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer; padding: 0 4px; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-loading { text-align: center; color: var(--text-dim); padding: 40px; }
+
+.settings-group { margin-bottom: 20px; }
+.settings-group h4 {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 0.85rem; color: var(--text-dim); flex: 1; }
+.setting-input {
+  width: 140px;
+  padding: 6px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 0.85rem;
+  text-align: right;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  transition: border-color var(--transition);
+}
+.setting-input:focus { outline: none; border-color: var(--accent); }
+.setting-input.small { width: 80px; }
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+.btn-primary {
+  background: var(--accent) !important;
+  color: #0b0e14 !important;
+  font-weight: 600 !important;
+  border-color: var(--accent) !important;
+}
+.btn-primary:hover { background: var(--accent-dim) !important; }
+
+/* Device clickable row */
+.device-clickable { cursor: pointer; transition: background var(--transition); padding: 6px 10px; margin: 0 -10px; border-radius: 5px; }
+.device-clickable:hover { background: var(--bg-card-hover); }
+.device-clickable .settings-icon { opacity: 0; transition: opacity var(--transition); font-size: 0.8rem; }
+.device-clickable:hover .settings-icon { opacity: 1; }
+
+/* Settings info row */
+.setting-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.setting-info strong { color: var(--text); min-width: 80px; }
+.setting-info .val { font-family: 'SF Mono', 'Fira Code', monospace; color: var(--text); }
+
+/* === Device Advanced Tab content shown inline === */
+#tab-devices {
+  display: none;
+  gap: 16px;
+}
+#tab-devices.active { display: grid; grid-template-columns: 1fr; }
+
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 16px;
+}
+.device-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.device-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.device-model { font-size: 1rem; font-weight: 600; }
+.device-meta .info-row { font-size: 0.8rem; padding: 3px 0; }
+.device-meta .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; }
+
+.device-real { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.device-real-loading { color: var(--text-dim); font-size: 0.8rem; text-align: center; padding: 8px; }
+.device-real-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.device-real-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+.device-real-stat .lbl { color: var(--text-dim); }
+.device-real-stat .val { font-weight: 600; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+.device-settings-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.device-settings-btn:hover { background: var(--bg-card-hover); border-color: var(--accent-dim); color: var(--accent); }
+
 .error-state {
   display: flex;
   flex-direction: column;

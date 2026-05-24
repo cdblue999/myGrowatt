@@ -172,6 +172,7 @@ async function loadPlantDetail(plantId) {
     renderPlantHeader(details, overview);
     renderOverviewTab(details, overview, devices);
     loadChartData('daily', plantId);
+    renderDevicesTab(devices);
     renderBatteryTab(plantId);
   } catch (err) {
     err._handled = true;
@@ -241,7 +242,10 @@ function renderOverviewTab(details, overview, devices) {
       <h3>Devices</h3>
       ${devices.map(d => `
         <div class="info-row">
-          <span>${escHtml(d.model || 'Inverter')}</span>
+          <div class="device-clickable" onclick="openDeviceSettings('${d.type}','${d.device_sn}')">
+            <span>${escHtml(d.model || 'Inverter')}</span>
+            <span class="settings-icon">⚙</span>
+          </div>
           <span class="val ${d.status === 1 ? 'green' : ''}">SN: ${d.device_sn} ${d.status === 1 ? '🟢' : '🔴'}</span>
         </div>
       `).join('')}
@@ -357,7 +361,67 @@ async function loadPowerChart(period) {
   }
 }
 
-function renderBatteryTab(plantId) {
+function renderDevicesTab(devices) {
+  const grid = document.getElementById('devices-grid');
+  if (!grid) return;
+  if (!devices || devices.length === 0) {
+    grid.innerHTML = '<p class="empty-state">No devices found for this plant.</p>';
+    return;
+  }
+  grid.innerHTML = '';
+  devices.forEach(d => {
+    const card = document.createElement('div');
+    card.className = 'device-card';
+    card.innerHTML = `
+      <div class="device-card-header">
+        <span class="device-model">${escHtml(d.model || 'Inverter')}</span>
+        <span class="device-status ${d.status === 1 ? 'status-online' : 'status-offline'}">${d.status === 1 ? 'Online' : 'Offline'}</span>
+      </div>
+      <div class="device-meta">
+        <div class="info-row"><span>SN</span><span class="val mono">${escHtml(d.device_sn)}</span></div>
+        <div class="info-row"><span>Type</span><span class="val">${d.type || '—'}</span></div>
+        <div class="info-row"><span>Datalogger</span><span class="val mono">${escHtml(d.datalogger_sn || '—')}</span></div>
+        <div class="info-row"><span>Last Update</span><span class="val">${d.last_update_time || '—'}</span></div>
+      </div>
+      <div id="device-real-${d.device_sn}" class="device-real">
+        <div class="device-real-loading">Loading data...</div>
+      </div>
+      <button class="device-settings-btn" onclick="openDeviceSettings('${d.type}','${d.device_sn}')">
+        ⚙ Settings
+      </button>
+    `;
+    grid.appendChild(card);
+    loadDeviceRealData(d.device_sn);
+  });
+}
+
+async function loadDeviceRealData(sn) {
+  const el = document.getElementById(`device-real-${sn}`);
+  if (!el) return;
+  try {
+    const data = await api(`/api/device/${sn}/real`);
+    const fields = [
+      { label: 'Power', key: 'power', unit: 'W' },
+      { label: 'Energy Today', key: 'eToday', unit: 'kWh' },
+      { label: 'Energy Total', key: 'eTotal', unit: 'kWh' },
+      { label: 'VAC1', key: 'vac1', unit: 'V' },
+      { label: 'IAC1', key: 'iac1', unit: 'A' },
+      { label: 'Frequency', key: 'fac1', unit: 'Hz' },
+      { label: 'Temperature', key: 'temperature', unit: '°C' },
+      { label: 'VPV1', key: 'vpv1', unit: 'V' }
+    ];
+    const has = fields.some(f => data[f.key] !== undefined);
+    if (has) {
+      el.innerHTML = `<div class="device-real-grid">${fields.filter(f => data[f.key] !== undefined).map(f =>
+        `<div class="device-real-stat"><span class="lbl">${f.label}</span><span class="val">${fmt(data[f.key])} ${f.unit}</span></div>`
+      ).join('')}</div>`;
+    } else {
+      el.innerHTML = '<div class="device-real-loading">Real-time data unavailable via API</div>';
+    }
+  } catch {
+    el.innerHTML = '<div class="device-real-loading">Real-time data unavailable via API</div>';
+  }
+}
   const bc = $('tab-battery');
   bc.innerHTML = '<p class="empty-state">Battery data is only available for MIX/SPH hybrid inverter systems.</p>';
 }
@@ -403,4 +467,149 @@ function escHtml(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
+}
+
+// === Device Settings ===
+let currentDevice = null;
+
+const SETTINGS_GROUPS = {
+  grid: { title: 'Grid Parameters', keys: ['voltageHighLimit','voltageLowLimit','workingFrequencyMin','workingFrequencyMax','wideVoltageEnable'] },
+  power: { title: 'Power Settings', keys: ['activeRate','reactiveRate','pf','pfModel'] },
+  system: { title: 'System', keys: ['timezone','alias','onOff'] }
+};
+
+const SETTINGS_LABELS = {
+  voltageHighLimit: 'Voltage High Limit (V)',
+  voltageLowLimit: 'Voltage Low Limit (V)',
+  workingFrequencyMin: 'Freq Min (Hz)',
+  workingFrequencyMax: 'Freq Max (Hz)',
+  wideVoltageEnable: 'Wide Voltage',
+  activeRate: 'Active Rate (%)',
+  reactiveRate: 'Reactive Rate (%)',
+  pf: 'Power Factor',
+  pfModel: 'PF Model',
+  timezone: 'Timezone',
+  alias: 'Alias',
+  onOff: 'On/Off'
+};
+
+const SETTINGS_OPTIONS = {
+  wideVoltageEnable: { 0: 'Disabled', 1: 'Enabled' },
+  onOff: { 0: 'Off', 1: 'On' },
+  pfModel: { 0: 'Fixed PF', 1: 'PF Curve' }
+};
+
+function openDeviceSettings(type, sn) {
+  currentDevice = { type, sn };
+  const modal = document.getElementById('settings-modal');
+  const title = document.getElementById('settings-title');
+  title.textContent = `Device Settings — ${sn}`;
+  modal.classList.remove('hidden');
+  document.getElementById('settings-loading').classList.remove('hidden');
+  document.getElementById('settings-form').classList.add('hidden');
+  document.getElementById('settings-fields').innerHTML = '';
+  loadDeviceSettings(type, sn);
+}
+
+function closeSettings() {
+  currentDevice = null;
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+
+async function loadDeviceSettings(type, sn) {
+  try {
+    const data = await api(`/api/device/${type}/${sn}/settings`);
+    renderDeviceSettings(data);
+  } catch (err) {
+    err._handled = true;
+    document.getElementById('settings-loading').textContent = 'Failed to load settings: ' + err.message;
+    document.getElementById('settings-loading').classList.remove('hidden');
+  }
+}
+
+function renderDeviceSettings(settings) {
+  document.getElementById('settings-loading').classList.add('hidden');
+  const form = document.getElementById('settings-form');
+  form.classList.remove('hidden');
+  const container = document.getElementById('settings-fields');
+  container.innerHTML = '';
+
+  // Info section
+  const infoKeys = ['sn','deviceModel','model','fwVersion','innerVersion','datalogSn','plantId','status','lost'];
+  let html = '<div class="settings-group"><h4>Device Info</h4>';
+  infoKeys.forEach(k => {
+    if (settings[k] !== undefined) {
+      html += `<div class="setting-info"><strong>${k}</strong><span class="val">${escHtml(String(settings[k]))}</span></div>`;
+    }
+  });
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Editable groups
+  Object.keys(SETTINGS_GROUPS).forEach(groupKey => {
+    const group = SETTINGS_GROUPS[groupKey];
+    let groupHtml = `<div class="settings-group"><h4>${group.title}</h4>`;
+    group.keys.forEach(k => {
+      if (settings[k] !== undefined) {
+        const val = String(settings[k]);
+        const label = SETTINGS_LABELS[k] || k;
+        const options = SETTINGS_OPTIONS[k];
+        groupHtml += `<div class="setting-row">
+          <span class="setting-label">${label}</span>`;
+        if (options) {
+          groupHtml += `<select class="setting-input" data-key="${k}">`;
+          Object.entries(options).forEach(([optVal, optLabel]) => {
+            groupHtml += `<option value="${optVal}"${val === optVal ? ' selected' : ''}>${optLabel}</option>`;
+          });
+          groupHtml += `</select>`;
+        } else if (k === 'timezone') {
+          groupHtml += `<select class="setting-input" data-key="${k}">`;
+          for (let i = -12; i <= 13; i++) {
+            const z = String(i);
+            groupHtml += `<option value="${z}"${val === z ? ' selected' : ''}>UTC${i >= 0 ? '+' : ''}${i}</option>`;
+          }
+          groupHtml += `</select>`;
+        } else {
+          groupHtml += `<input type="text" class="setting-input" data-key="${k}" value="${escHtml(val)}">`;
+        }
+        groupHtml += `</div>`;
+      }
+    });
+    groupHtml += '</div>';
+    container.innerHTML += groupHtml;
+  });
+
+  form.onsubmit = saveDeviceSettings;
+}
+
+async function saveDeviceSettings(e) {
+  e.preventDefault();
+  if (!currentDevice) return;
+  const btn = document.getElementById('save-settings-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const values = {};
+  document.querySelectorAll('#settings-form [data-key]').forEach(el => {
+    values[el.dataset.key] = el.value;
+  });
+
+  try {
+    await fetch(`/api/device/${currentDevice.type}/${currentDevice.sn}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parameter_id: 0, values })
+    });
+    const res = await fetch(`/api/device/${currentDevice.type}/${currentDevice.sn}/settings`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const updated = await res.json();
+    renderDeviceSettings(updated);
+    showToast('Settings saved successfully', 'success', 3000);
+  } catch (err) {
+    showToast('Failed to save: ' + err.message, 'error', 6000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Settings';
+  }
 }

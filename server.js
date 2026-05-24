@@ -181,6 +181,41 @@ app.get('/api/plant/:id/mix/:sn/battery/weekly', (req, res) => {
   res.json({ batteryList: [], week: [] });
 });
 
+// ============ REAL-TIME DEVICE DATA ============
+app.get('/api/device/:sn/real', asyncHandler(async (req, res) => {
+  const data = await apiGet('/device/inverter/inverter_last_data', { device_sn: req.params.sn });
+  res.json(data);
+}));
+
+// ============ PLANT ALARMS ============
+app.get('/api/plant/:id/alarms', asyncHandler(async (req, res) => {
+  try {
+    const data = await apiGet('/device/alarm/alarm_list', {
+      plant_id: req.params.id,
+      page: '1',
+      perpage: '20'
+    });
+    res.json(data);
+  } catch {
+    try {
+      const r = await legacyGet('newAlarmCenter.do', { op: 'getAlarmList', plantId: req.params.id, page: 1, perpage: 20 });
+      res.json(r);
+    } catch {
+      res.json({ alarms: [], count: 0 });
+    }
+  }
+}));
+
+// ============ PLANT WEATHER ============
+app.get('/api/plant/:id/weather', asyncHandler(async (req, res) => {
+  try {
+    const data = await apiGet('/weather/weather/plant_weather', { plant_id: req.params.id });
+    res.json(data);
+  } catch {
+    res.json({ weather: [] });
+  }
+}));
+
 // ============ DEVICE ADVANCED SETTINGS ============
 
 // Helper: extract embedded JSON from legacy HTML response
@@ -232,7 +267,7 @@ app.post('/api/device/:type/:sn/settings', asyncHandler(async (req, res) => {
   const type = parseInt(req.params.type);
   const sn = req.params.sn;
   const { parameter_id, values } = req.body;
-  if (!parameter_id) throw new AppError('parameter_id required', 400, 'MISSING_PARAM');
+  if (parameter_id === undefined || parameter_id === null) throw new AppError('parameter_id required', 400, 'MISSING_PARAM');
 
   if (type === 5) {
     const data = { mix_sn: sn, type: parameter_id };
@@ -244,7 +279,7 @@ app.post('/api/device/:type/:sn/settings', asyncHandler(async (req, res) => {
     for (let i = 1; i <= 19; i++) data[`param${i}`] = (values && values[i]) || '';
     return res.json(await apiPost('/tlxSet', data));
   }
-  const data = { op: 'inverterSet', serialNum: sn, type: parameter_id };
+  const data = { op: 'inverterSet', serialNum: sn, paramId: parameter_id };
   if (values) {
     for (const [k, v] of Object.entries(values)) data[k] = String(v);
   }
