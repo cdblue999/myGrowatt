@@ -422,6 +422,8 @@ async function loadDeviceRealData(sn) {
     el.innerHTML = '<div class="device-real-loading">Real-time data unavailable via API</div>';
   }
 }
+
+function renderBatteryTab(plantId) {
   const bc = $('tab-battery');
   bc.innerHTML = '<p class="empty-state">Battery data is only available for MIX/SPH hybrid inverter systems.</p>';
 }
