@@ -52,6 +52,8 @@ async function api(path, opts = {}) {
 }
 
 // === Linked Growatt accounts (multi-account comparison) ===
+let comparisonData = [];
+
 function apiExternal(accountId, path) {
   return api(`/api/external/${accountId}${path}`);
 }
@@ -134,9 +136,10 @@ async function loadExternalPlants() {
   if (!container) return;
   try {
     const accounts = await api('/api/accounts/linked');
-    if (!accounts.length) { container.innerHTML = ''; return; }
+    if (!accounts.length) { container.innerHTML = ''; comparisonData = []; renderComparison(); return; }
     let html = '<h3 style="color:#ccc;font-size:16px;margin:24px 0 12px">Inne instalacje PV</h3><div class="plant-cards" id="external-plant-cards">';
     let hasPlants = false;
+    const allExternal = [];
     for (const acct of accounts) {
       try {
         const data = await apiExternal(acct.id, '/plants');
@@ -147,6 +150,7 @@ async function loadExternalPlants() {
             const energy = parseFloat(p.total_energy || p.eTotal || 0);
             const isOnline = String(p.status) === '1' || String(p.status) === 'online' || String(p.status) === '0';
             const statusText = isOnline ? t('online') : t('offline');
+            allExternal.push({ name, energy, today: p.today_energy || p.eToday || 0, peak: p.peak_power || p.nominalPower || 0, power: p.current_power || 0, isOnline, accountLabel: acct.label, accountId: acct.id, plantId: p.plant_id || p.id });
             html += `<div class="plant-card external-plant" data-account="${acct.id}" data-plant="${p.plant_id || p.id}" style="cursor:pointer" onclick="loadExternalPlant('${acct.id}','${p.plant_id || p.id}')">
               <div class="plant-card-header">
                 <div class="plant-name">${escHtml(name)} <span style="font-size:11px;color:#888">(${escHtml(acct.label)})</span></div>
@@ -165,7 +169,53 @@ async function loadExternalPlants() {
     }
     html += '</div>';
     container.innerHTML = hasPlants ? html : '';
-  } catch (e) { /* ignore */ }
+    comparisonData = allExternal;
+    renderComparison();
+  } catch (e) { comparisonData = []; renderComparison(); }
+}
+
+function renderComparison() {
+  const section = document.getElementById('comparison-section');
+  const grid = document.getElementById('comparison-grid');
+  const title = document.getElementById('comparison-title');
+  if (!section || !grid) return;
+  // Collect own plants data
+  const ownPlants = [];
+  document.querySelectorAll('#plant-cards .plant-card').forEach(card => {
+    const nameEl = card.querySelector('.plant-name');
+    const stats = card.querySelectorAll('.plant-stat .value');
+    const statusEl = card.querySelector('.plant-status');
+    if (nameEl && stats.length >= 4) {
+      ownPlants.push({
+        name: nameEl.textContent.trim(),
+        total: parseFloat(stats[0]?.textContent) || 0,
+        today: parseFloat(stats[1]?.textContent) || 0,
+        peak: stats[2]?.textContent || '—',
+        power: stats[3]?.textContent || '—',
+        isOnline: statusEl ? statusEl.classList.contains('status-online') : false,
+        accountLabel: ''
+      });
+    }
+  });
+  const all = [...ownPlants, ...comparisonData];
+  if (all.length < 2) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  if (title) title.textContent = t('comparisonTitle') || 'Porównanie instalacji';
+  grid.innerHTML = all.map(inst => `
+    <div style="background:#1a1a30;border:1px solid #3a3a55;border-radius:10px;padding:16px;text-align:center;${inst.accountLabel ? 'border-left:3px solid #f5c842' : ''}">
+      <div style="font-size:14px;color:#e0e0e0;font-weight:600;margin-bottom:10px">${escHtml(inst.name)}</div>
+      <div class="plant-status ${inst.isOnline ? 'status-online' : 'status-offline'}" style="display:inline-block;margin-bottom:8px">${inst.isOnline ? t('online') : t('offline')}</div>
+      ${inst.accountLabel ? `<div style="font-size:11px;color:#888;margin-bottom:8px">${escHtml(inst.accountLabel)}</div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div><div class="value blue" style="font-size:16px">${fmt(inst.power * 1000)} W</div><div class="label">${t('currentPower')}</div></div>
+        <div><div class="value green" style="font-size:16px">${fmt(inst.today)} kWh</div><div class="label">${t('todayKwh')}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;padding-top:8px;border-top:1px solid #2a2a45">
+        <div><div class="value accent" style="font-size:14px">${fmt(inst.total)} kWh</div><div class="label">${t('totalKwh')}</div></div>
+        <div><div class="value purple" style="font-size:14px">${inst.peak}</div><div class="label">${t('peakPowerKw')}</div></div>
+      </div>
+    </div>
+  `).join('');
 }
 
 async function loadExternalPlant(accountId, plantId) {
@@ -392,7 +442,8 @@ const LANG = {
     prosumerTl202407: 'Wycena po cenach godzinowych (RDN)',
     prosumerSources: 'Źródła oficjalne',
     prosumerModalClose: '×',
-    linkedAccounts: 'Połączone konta Growatt'
+    linkedAccounts: 'Połączone konta Growatt',
+    comparisonTitle: 'Porównanie instalacji'
   },
   en: {
     pageTitle: 'myGrowatt - PV Plant Monitor',
@@ -547,7 +598,8 @@ const LANG = {
     prosumerTl202407: 'Hourly RDN price valuation',
     prosumerSources: 'Official Sources',
     prosumerModalClose: '×',
-    linkedAccounts: 'Linked Growatt Accounts'
+    linkedAccounts: 'Linked Growatt Accounts',
+    comparisonTitle: 'Installation Comparison'
   }
 };
 
