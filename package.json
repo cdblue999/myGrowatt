@@ -4,6 +4,7 @@
   "description": "Premium PV plant monitoring for Growatt accounts",
   "main": "server.js",
   "scripts": {
+    "build": "node server.js",
     "start": "node server.js",
     "dev": "node server.js"
   },
