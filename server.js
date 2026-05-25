@@ -43,10 +43,11 @@ function saveUsers(users) {
 
 // Pre-create user entry
 let users = loadUsers();
-if (!users['emsolar355@gmail.com']) {
-  users['emsolar355@gmail.com'] = { password: null, createdAt: new Date().toISOString() };
-  saveUsers(users);
-}
+['emsolar355@gmail.com', 'zsolarewicz@gmail.com'].forEach(email => {
+  if (!users[email]) {
+    users[email] = { password: null, createdAt: new Date().toISOString() };
+  }
+});
 
 class AppError extends Error {
   constructor(message, status = 502, code = 'API_ERROR') {
