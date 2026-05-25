@@ -1,3 +1,4 @@
+/* Copyright by cdblue999@gmail.com, 2026 */
 /* === Reset & Base === */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -70,7 +71,8 @@ body {
 }
 .topbar-left { display: flex; align-items: center; gap: 10px; }
 .topbar-left h2 { font-size: 1.15rem; font-weight: 700; }
-.topbar-center { color: var(--text-dim); font-size: 0.85rem; }
+.topbar-center { color: var(--text-dim); font-size: 0.82rem; text-align: center; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.copyright-header { opacity: 0.6; letter-spacing: 0.2px; padding: 0 12px; }
 .topbar-right { display: flex; gap: 8px; align-items: center; }
 
 #refresh-btn {
@@ -577,6 +579,61 @@ body {
   transition: all var(--transition);
 }
 .error-state .btn-sm:hover { border-color: var(--accent-dim); background: var(--bg-card-hover); }
+
+/* === Language Switcher === */
+.lang-btn { padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-dim); cursor: pointer; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.5px; transition: all var(--transition); min-width: 36px; text-align: center; }
+.lang-btn:hover { background: var(--bg-card-hover); border-color: var(--accent-dim); color: var(--accent); }
+
+/* === Prosumer Button === */
+#prosumer-btn { padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; transition: all var(--transition); }
+#prosumer-btn:hover { background: var(--bg-card-hover); border-color: var(--accent-dim); color: var(--accent); }
+
+/* === Footer === */
+.app-footer { text-align: center; padding: 16px 24px; border-top: 1px solid var(--border); margin-top: 24px; }
+.copyright-text { font-size: 0.78rem; color: var(--text-dim); opacity: 0.6; letter-spacing: 0.2px; }
+
+/* === Billing Tab === */
+#tab-billing { display: none; }
+#tab-billing.active { display: block; }
+#billing-content { display: flex; flex-direction: column; gap: 16px; }
+.billing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .billing-grid { grid-template-columns: 1fr; } }
+.billing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.billing-card h3 { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 600; }
+.billing-summary-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bill-stat { padding: 6px 10px; background: rgba(255,255,255,0.02); border-radius: var(--radius-sm); }
+.bill-stat .lbl { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; display: block; }
+.bill-stat .val { font-size: 1rem; font-weight: 600; margin-top: 2px; display: block; }
+.billing-big-number { font-size: 2.4rem; font-weight: 700; line-height: 1.1; }
+.billing-big-number .unit { font-size: 1rem; font-weight: 400; color: var(--text-dim); margin-left: 4px; }
+.billing-sub { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 12px; }
+.billing-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.billing-row:last-child { border-bottom: none; }
+.billing-row .val { font-weight: 500; }
+.total-row { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; font-weight: 600; }
+.totals-card .billing-row { font-size: 0.82rem; }
+.billing-controls { display: flex; gap: 20px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; align-items: end; }
+.control-group { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
+.control-group label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; }
+.slider-row { display: flex; align-items: center; gap: 10px; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--accent); min-width: 100px; }
+.slider-val { font-size: 1rem; font-weight: 600; color: var(--accent); min-width: 42px; text-align: right; }
+.billing-input { width: 100px; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 0.9rem; font-weight: 600; text-align: right; }
+.billing-input:focus { outline: none; border-color: var(--accent); }
+.billing-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .billing-comparison { grid-template-columns: 1fr; } }
+.billing-scenario { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.billing-scenario.scenario-active { border-color: var(--accent-dim); }
+.scenario-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.scenario-header h4 { font-size: 0.95rem; font-weight: 600; }
+.scenario-badge { font-size: 0.65rem; padding: 2px 10px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.badge-active { background: rgba(52,211,153,0.15); color: var(--green); }
+.badge-inactive { background: rgba(248,113,113,0.15); color: var(--red); }
+.scenario-detail { margin-top: 8px; }
+.billing-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.billing-table th { text-align: left; padding: 6px 8px; color: var(--text-dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid var(--border); font-weight: 600; }
+.billing-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.billing-table .total-row td { border-top: 1px solid var(--border); font-weight: 600; }
 
 /* === Animations === */
 @keyframes fadeInUp {

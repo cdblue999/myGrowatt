@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>myGrowatt - PV Plant Monitor</title>
+<title data-i18n="pageTitle">myGrowatt - Monitor PV</title>
+<!-- Copyright by cdblue999@gmail.com, 2026 -->
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -18,10 +19,15 @@
         <h2>myGrowatt</h2>
           <span id="account-name" class="account-name"></span>
       </div>
+      <div class="topbar-center copyright-header" data-i18n="copyright">Copyright by cdblue999@gmail.com, 2026</div>
       <div class="topbar-right">
-        <button id="refresh-btn" title="Refresh all data">
+        <button id="lang-btn" class="lang-btn" title="Switch language" onclick="toggleLang()">EN</button>
+        <button id="prosumer-btn" data-i18n-title="prosumerBtnTitle">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/></svg>
+        </button>
+        <button id="refresh-btn" data-i18n-title="refreshBtnTitle">
           <svg viewBox="0 0 24 24" width="18" height="18"><path d="M17.65 6.35A7.96 7.96 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/></svg>
-          Refresh
+          <span data-i18n="refreshBtnText">Odśwież</span>
         </button>
       </div>
     </header>
@@ -43,19 +49,20 @@
         <div id="plant-detail-header"></div>
 
         <div class="tabs">
-          <button class="tab active" data-tab="overview">Overview</button>
-          <button class="tab" data-tab="devices">Devices</button>
-          <button class="tab" data-tab="charts">Energy Charts</button>
-          <button class="tab" data-tab="battery">Battery</button>
+          <button class="tab active" data-tab="overview" data-i18n="tabOverview">Przegląd</button>
+          <button class="tab" data-tab="devices" data-i18n="tabDevices">Urządzenia</button>
+          <button class="tab" data-tab="charts" data-i18n="tabCharts">Wykresy</button>
+          <button class="tab" data-tab="billing" data-i18n="tabBilling">Rozliczenia</button>
+          <button class="tab" data-tab="battery" data-i18n="tabBattery">Bateria</button>
         </div>
 
         <div id="tab-overview" class="tab-content active"></div>
         <div id="tab-charts" class="tab-content">
           <div class="chart-controls">
             <div class="btn-group" id="chart-period">
-              <button class="btn-sm active" data-period="daily">Day</button>
-              <button class="btn-sm" data-period="monthly">Month</button>
-              <button class="btn-sm" data-period="yearly">Year</button>
+              <button class="btn-sm active" data-period="daily" data-i18n="day">Dzień</button>
+              <button class="btn-sm" data-period="monthly" data-i18n="month">Miesiąc</button>
+              <button class="btn-sm" data-period="yearly" data-i18n="year">Rok</button>
             </div>
           </div>
           <div class="chart-grid">
@@ -63,12 +70,20 @@
             <div class="chart-card"><canvas id="chart-power"></canvas></div>
           </div>
         </div>
+        <div id="tab-billing" class="tab-content">
+          <div id="billing-content"></div>
+        </div>
         <div id="tab-battery" class="tab-content"></div>
         <div id="tab-devices" class="tab-content">
           <div id="devices-grid" class="devices-grid"></div>
         </div>
       </section>
     </main>
+
+    <footer class="app-footer">
+        <span class="copyright-text" data-i18n="copyright">Copyright by cdblue999@gmail.com, 2026</span>
+        <span class="lang-footer" style="display:none"></span>
+    </footer>
   </div>
 
   <div id="loading" class="loading-overlay hidden">
@@ -77,6 +92,60 @@
   </div>
   <div id="toast-container" class="toast-container"></div>
 </div>
+  <!-- Prosumer Info Modal -->
+  <div id="prosumer-modal" class="modal hidden">
+    <div class="modal-overlay" onclick="closeProsumerInfo()"></div>
+    <div class="modal-content" style="max-width:700px">
+      <div class="modal-header">
+        <h3>Prosumer Billing Info — Poland</h3>
+        <button class="modal-close" onclick="closeProsumerInfo()">&times;</button>
+      </div>
+      <div class="modal-body prosumer-body">
+        <div class="prosumer-section">
+          <h4>Net-Metering (opusty) — do 31.03.2022</h4>
+          <p>Dla instalacji zgłoszonych do <strong>31 marca 2022</strong>. Obowiązuje przez 15 lat od pierwszej kWh wprowadzonej do sieci.</p>
+          <ul>
+            <li>Instalacja &le;10 kW: oddaj 1 kWh → odbierz 0,8 kWh</li>
+            <li>Instalacja &gt;10 kW: oddaj 1 kWh → odbierz 0,7 kWh</li>
+            <li>Brak opłaty dystrybucyjnej zmiennej</li>
+            <li>Rozliczenie nadwyżki w ciągu 12 miesięcy</li>
+          </ul>
+        </div>
+
+        <div class="prosumer-section">
+          <h4>Net-Billing — od 1.04.2022</h4>
+          <p>Dla nowych prosumentów (wniosek od 1 kwietnia 2022). Rozliczenie <strong>wartościowe</strong> (PLN), nie ilościowe.</p>
+          <ul>
+            <li>Nadwyżka sprzedawana po cenie rynkowej</li>
+            <li>Opłata dystrybucyjna zmienna naliczana</li>
+            <li>Depozyt prosumencki ważny 12 miesięcy</li>
+            <li>Zwrot max 20% nadwyżki miesięcznej</li>
+          </ul>
+        </div>
+
+        <div class="prosumer-section">
+          <h4>Timeline</h4>
+          <table class="prosumer-timeline">
+            <tr><td class="yr">2019</td><td>Pakiet Prosumencki — firmy mogą być prosumentami (do 50 kW)</td></tr>
+            <tr><td class="yr">2022-04</td><td>Net-billing wchodzi dla nowych prosumentów</td></tr>
+            <tr><td class="yr">2022-07</td><td>Wycena po miesięcznej cenie rynkowej</td></tr>
+            <tr><td class="yr">2024-07</td><td>Wycena po cenach godzinowych (RDN)</td></tr>
+          </table>
+        </div>
+
+        <div class="prosumer-section">
+          <h4>Official Sources</h4>
+          <ul class="prosumer-links">
+            <li><a href="https://www.gov.pl/web/klimat/sejm-przyjal-nowelizacje-ustawy-o-odnawialnych-zrodlach-energii-wprowadzajaca-zmiany-do-systemu-rozliczen-prosumentow" target="_blank" rel="noopener">Gov.pl — Net-billing introduction (2021)</a></li>
+            <li><a href="https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20190000503" target="_blank" rel="noopener">ISAP — Rozporządzenie 2019 poz. 503</a></li>
+            <li><a href="https://eon.pl/-/media/Eon/Dokumenty/Obsluga-i-pomoc/Zasady-rozliczania/QA_Zasady_rozliczenia_prosumentow.ashx" target="_blank" rel="noopener">E.ON — Zasady rozliczania prosumentów</a></li>
+            <li><a href="https://kwant.net.pl/akademia/artykuly/jak-rozlicza-sie-prosument-nowy-system-rozliczania-z-zakladem-energetycznym-dla-prosumentow-1-kwietnia-2022-r-60" target="_blank" rel="noopener">Kwant — Jak rozlicza się prosument?</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="js/app.js"></script>
 
   <!-- Device Settings Modal -->
