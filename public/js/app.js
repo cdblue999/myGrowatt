@@ -98,7 +98,7 @@ const LANG = {
     loadingBilling: 'Ładowanie danych rozliczeniowych...',
     loadingData: 'Ładowanie danych...',
     yourPlants: 'Twoje plantacje',
-    plants: 'Plantacje',
+    plants: 'Instalacje PV',
     online: 'Online',
     offline: 'Offline',
     totalKwh: 'Całkowita kWh',
