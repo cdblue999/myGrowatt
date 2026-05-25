@@ -1,3 +1,4 @@
+// Copyright by cdblue999@gmail.com, 2026
 const express = require('express');
 const path = require('path');
 const app = express();
@@ -145,6 +146,63 @@ app.get('/api/plant/:id/power', asyncHandler(async (req, res) => {
   const date = req.query.date || new Date().toISOString().slice(0, 10);
   const data = await apiGet('/plant/power', { plant_id: req.params.id, date });
   res.json(data);
+}));
+
+// Billing calculation (Polish prosumer)
+app.get('/api/plant/:id/billing', asyncHandler(async (req, res) => {
+  const plantId = req.params.id;
+
+  // Fetch plant details + overview + yearly energy
+  const [details, overview, plantsList] = await Promise.all([
+    apiGet('/plant/details', { plant_id: plantId }).catch(() => ({})),
+    apiGet('/plant/data', { plant_id: plantId }),
+    apiGet('/plant/list').catch(() => ({ plants: [] }))
+  ]);
+
+  const plantMeta = (plantsList.plants || []).find(p => String(p.plant_id) === String(plantId) || String(p.id) === String(plantId)) || {};
+  const peakPower = parseFloat(plantMeta.peak_power || details.peak_power || 0);
+  const createDate = plantMeta.create_date || details.create_date || '';
+  const totalEnergy = parseFloat(overview.total_energy || 0);
+
+  // Fetch yearly production data (from 2019 to 2035 to cover full contract period)
+  const end = new Date();
+  const start = new Date('2019-01-01');
+  const energyRes = await apiGet('/plant/energy', {
+    plant_id: plantId,
+    start_date: start.toISOString().slice(0, 10),
+    end_date: '2035-12-31',
+    time_unit: 'year',
+    page: 1,
+    perpage: 100
+  }).catch(() => ({ energys: [] }));
+
+  const yearlies = (energyRes.energys || []).map(e => ({
+    year: String(e.date).substring(0, 4),
+    energy: parseFloat(e.energy) || 0
+  }));
+
+  // Determine billing regime
+  const installDate = new Date(createDate || '2020-01-01');
+  const cutoffDate = new Date('2022-04-01');
+  const isNetMetering = installDate < cutoffDate;
+  const netMeteringRatio = peakPower <= 10 ? 0.8 : 0.7;
+
+  res.json({
+    peakPower,
+    createDate,
+    totalEnergy,
+    installBefore2022: isNetMetering,
+    netMeteringRatio,
+    yearlies,
+    overview: {
+      todayEnergy: parseFloat(overview.today_energy || 0),
+      monthlyEnergy: parseFloat(overview.monthly_energy || 0),
+      yearlyEnergy: parseFloat(overview.yearly_energy || 0),
+      currentPower: parseFloat(overview.current_power || 0),
+      lastUpdate: overview.last_update_time || ''
+    },
+    plantName: plantMeta.name || details.name || ''
+  });
 }));
 
 // MIX energy history (delegated to plant energy)
