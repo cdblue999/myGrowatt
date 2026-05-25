@@ -41,13 +41,16 @@ function saveUsers(users) {
   } catch (e) { console.warn('[auth] cannot save users file:', e.message); }
 }
 
-// Pre-create user entry
+// Pre-create user entries
 let users = loadUsers();
+let userDirty = false;
 ['emsolar355@gmail.com', 'zsolarewicz@gmail.com'].forEach(email => {
   if (!users[email]) {
     users[email] = { password: null, createdAt: new Date().toISOString() };
+    userDirty = true;
   }
 });
+if (userDirty) saveUsers(users);
 
 class AppError extends Error {
   constructor(message, status = 502, code = 'API_ERROR') {
