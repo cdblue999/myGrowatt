@@ -1,6 +1,19 @@
 // Copyright by cdblue999@gmail.com, 2026
 const express = require('express');
 const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+// === Process-level crash protection ===
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] uncaughtException:', err.message, err.stack);
+  // Let process exit (HostingGuru restarts automatically)
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] unhandledRejection:', reason instanceof Error ? reason.message : reason);
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const TOKEN = process.env.GROWATT_TOKEN;
@@ -22,7 +35,21 @@ function asyncHandler(fn) {
   };
 }
 
+// === Security & infrastructure middleware ===
+app.set('trust proxy', 1);
+app.use(helmet());
 app.use(express.json());
+
+// API rate limiter — 30 requests per 15 min per IP
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, slow down', code: 'RATE_LIMIT' }
+});
+app.use('/api/', apiLimiter);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 function apiHeaders() {
@@ -79,6 +106,21 @@ async function legacyGet(endpoint, params = {}) {
   try { return JSON.parse(text); } catch { return { raw: text, isHtml: text.trim().startsWith('<'), status: res.status }; }
 }
 
+// === Input validation helpers ===
+function validatePlantId(id) {
+  if (!/^\d+$/.test(String(id))) throw new AppError('Invalid plant ID', 400, 'INVALID_PARAM');
+  return id;
+}
+function validateDeviceSn(sn) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(String(sn))) throw new AppError('Invalid device serial number', 400, 'INVALID_PARAM');
+  return sn;
+}
+
+// Health check for platform monitoring
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), tokenSet: !!TOKEN });
+});
+
 // Account info
 app.get('/api/account', asyncHandler(async (req, res) => {
   res.json({ name: ACCOUNT });
@@ -92,29 +134,33 @@ app.get('/api/plants', asyncHandler(async (req, res) => {
 
 // Plant detail
 app.get('/api/plant/:id', asyncHandler(async (req, res) => {
+  const plantId = validatePlantId(req.params.id);
   const [details, overview, devices] = await Promise.all([
-    apiGet('/plant/details', { plant_id: req.params.id }),
-    apiGet('/plant/data', { plant_id: req.params.id }),
-    apiGet('/device/list', { plant_id: req.params.id, page: '', perpage: '' })
+    apiGet('/plant/details', { plant_id: plantId }),
+    apiGet('/plant/data', { plant_id: plantId }),
+    apiGet('/device/list', { plant_id: plantId, page: '', perpage: '' })
   ]);
   res.json({ details, overview, devices: devices.devices || [] });
 }));
 
 // Device list
 app.get('/api/plant/:id/devices', asyncHandler(async (req, res) => {
-  const data = await apiGet('/device/list', { plant_id: req.params.id, page: '', perpage: '' });
+  const plantId = validatePlantId(req.params.id);
+  const data = await apiGet('/device/list', { plant_id: plantId, page: '', perpage: '' });
   res.json(data.devices || []);
 }));
 
 // MIX total data
 app.get('/api/plant/:id/mix/:sn/total', asyncHandler(async (req, res) => {
-  const data = await apiPost('/device/mix/mix_last_data', { mix_sn: req.params.sn });
+  const sn = validateDeviceSn(req.params.sn);
+  const data = await apiPost('/device/mix/mix_last_data', { mix_sn: sn });
   res.json(data);
 }));
 
 // MIX status (same endpoint, different mapping)
 app.get('/api/plant/:id/mix/:sn/status', asyncHandler(async (req, res) => {
-  const data = await apiPost('/device/mix/mix_last_data', { mix_sn: req.params.sn });
+  const sn = validateDeviceSn(req.params.sn);
+  const data = await apiPost('/device/mix/mix_last_data', { mix_sn: sn });
   res.json(data);
 }));
 
@@ -125,13 +171,14 @@ const ENERGY_MAP = {
   yearly: { endpoint: '/plant/energy', time_unit: 'year', days: 365 * 5 }
 };
 app.get('/api/plant/:id/energy/:period', asyncHandler(async (req, res) => {
+  const plantId = validatePlantId(req.params.id);
   const cfg = ENERGY_MAP[req.params.period];
   if (!cfg) throw new AppError('Invalid period', 400, 'INVALID_PARAM');
   const end = new Date();
   const start = new Date();
   start.setDate(start.getDate() - cfg.days);
   const data = await apiGet('/plant/energy', {
-    plant_id: req.params.id,
+    plant_id: plantId,
     start_date: start.toISOString().slice(0, 10),
     end_date: end.toISOString().slice(0, 10),
     time_unit: cfg.time_unit,
@@ -143,20 +190,21 @@ app.get('/api/plant/:id/energy/:period', asyncHandler(async (req, res) => {
 
 // Plant power data for today
 app.get('/api/plant/:id/power', asyncHandler(async (req, res) => {
+  const plantId = validatePlantId(req.params.id);
   const date = req.query.date || new Date().toISOString().slice(0, 10);
-  const data = await apiGet('/plant/power', { plant_id: req.params.id, date });
+  const data = await apiGet('/plant/power', { plant_id: plantId, date });
   res.json(data);
 }));
 
 // Billing calculation (Polish prosumer)
 app.get('/api/plant/:id/billing', asyncHandler(async (req, res) => {
-  const plantId = req.params.id;
+  const plantId = validatePlantId(req.params.id);
 
   // Fetch plant details + overview + yearly energy
   const [details, overview, plantsList] = await Promise.all([
-    apiGet('/plant/details', { plant_id: plantId }).catch(() => ({})),
+    apiGet('/plant/details', { plant_id: plantId }).catch(e => { console.warn('[warn] plant/details failed:', e.message); return {}; }),
     apiGet('/plant/data', { plant_id: plantId }),
-    apiGet('/plant/list').catch(() => ({ plants: [] }))
+    apiGet('/plant/list').catch(e => { console.warn('[warn] plant/list failed:', e.message); return { plants: [] }; })
   ]);
 
   const plantMeta = (plantsList.plants || []).find(p => String(p.plant_id) === String(plantId) || String(p.id) === String(plantId)) || {};
@@ -174,7 +222,7 @@ app.get('/api/plant/:id/billing', asyncHandler(async (req, res) => {
     time_unit: 'year',
     page: 1,
     perpage: 100
-  }).catch(() => ({ energys: [] }));
+  }).catch(e => { console.warn('[warn] plant/energy failed:', e.message); return { energys: [] }; });
 
   const yearlies = (energyRes.energys || []).map(e => ({
     year: String(e.date).substring(0, 4),
@@ -207,6 +255,8 @@ app.get('/api/plant/:id/billing', asyncHandler(async (req, res) => {
 
 // MIX energy history (delegated to plant energy)
 app.get('/api/plant/:id/mix/:sn/energy/:period', asyncHandler(async (req, res) => {
+  const plantId = validatePlantId(req.params.id);
+  const sn = validateDeviceSn(req.params.sn);
   const cfg = ENERGY_MAP[req.params.period];
   if (!cfg) throw new AppError('Invalid period', 400, 'INVALID_PARAM');
   const end = new Date();
@@ -215,7 +265,7 @@ app.get('/api/plant/:id/mix/:sn/energy/:period', asyncHandler(async (req, res) =
   let data;
   try {
     data = await apiPost('/device/mix/mix_data', {
-      mix_sn: req.params.sn,
+      mix_sn: sn,
       start_date: start.toISOString().slice(0, 10),
       end_date: end.toISOString().slice(0, 10),
       page: 1,
@@ -223,7 +273,7 @@ app.get('/api/plant/:id/mix/:sn/energy/:period', asyncHandler(async (req, res) =
     });
   } catch {
     data = await apiGet('/plant/energy', {
-      plant_id: req.params.id,
+      plant_id: plantId,
       start_date: start.toISOString().slice(0, 10),
       end_date: end.toISOString().slice(0, 10),
       time_unit: cfg.time_unit,
@@ -241,24 +291,28 @@ app.get('/api/plant/:id/mix/:sn/battery/weekly', (req, res) => {
 
 // ============ REAL-TIME DEVICE DATA ============
 app.get('/api/device/:sn/real', asyncHandler(async (req, res) => {
-  const data = await apiGet('/device/inverter/inverter_last_data', { device_sn: req.params.sn });
+  const sn = validateDeviceSn(req.params.sn);
+  const data = await apiGet('/device/inverter/inverter_last_data', { device_sn: sn });
   res.json(data);
 }));
 
 // ============ PLANT ALARMS ============
 app.get('/api/plant/:id/alarms', asyncHandler(async (req, res) => {
+  const plantId = validatePlantId(req.params.id);
   try {
     const data = await apiGet('/device/alarm/alarm_list', {
-      plant_id: req.params.id,
+      plant_id: plantId,
       page: '1',
       perpage: '20'
     });
     res.json(data);
-  } catch {
+  } catch (e) {
+    console.warn('[warn] alarm_list api failed:', e.message);
     try {
-      const r = await legacyGet('newAlarmCenter.do', { op: 'getAlarmList', plantId: req.params.id, page: 1, perpage: 20 });
+      const r = await legacyGet('newAlarmCenter.do', { op: 'getAlarmList', plantId: plantId, page: 1, perpage: 20 });
       res.json(r);
-    } catch {
+    } catch (e2) {
+      console.warn('[warn] alarm_list legacy fallback failed:', e2.message);
       res.json({ alarms: [], count: 0 });
     }
   }
@@ -266,10 +320,12 @@ app.get('/api/plant/:id/alarms', asyncHandler(async (req, res) => {
 
 // ============ PLANT WEATHER ============
 app.get('/api/plant/:id/weather', asyncHandler(async (req, res) => {
+  const plantId = validatePlantId(req.params.id);
   try {
-    const data = await apiGet('/weather/weather/plant_weather', { plant_id: req.params.id });
+    const data = await apiGet('/weather/weather/plant_weather', { plant_id: plantId });
     res.json(data);
-  } catch {
+  } catch (e) {
+    console.warn('[warn] weather failed:', e.message);
     res.json({ weather: [] });
   }
 }));
@@ -287,7 +343,7 @@ function extractEmbeddedJson(text, varName) {
 // Device info - type-specific
 app.get('/api/device/:type/:sn/info', asyncHandler(async (req, res) => {
   const type = parseInt(req.params.type);
-  const sn = req.params.sn;
+  const sn = validateDeviceSn(req.params.sn);
   if (type === 5) {
     return res.json(await apiGet('/device/mix/mix_data_info', { device_sn: sn }));
   }
@@ -305,7 +361,7 @@ app.get('/api/device/:type/:sn/info', asyncHandler(async (req, res) => {
 // Device settings
 app.get('/api/device/:type/:sn/settings', asyncHandler(async (req, res) => {
   const type = parseInt(req.params.type);
-  const sn = req.params.sn;
+  const sn = validateDeviceSn(req.params.sn);
   if (type === 5) {
     return res.json(await apiGet('/device/mix/mix_data_info', { device_sn: sn }));
   }
@@ -323,7 +379,7 @@ app.get('/api/device/:type/:sn/settings', asyncHandler(async (req, res) => {
 // Write device parameter
 app.post('/api/device/:type/:sn/settings', asyncHandler(async (req, res) => {
   const type = parseInt(req.params.type);
-  const sn = req.params.sn;
+  const sn = validateDeviceSn(req.params.sn);
   const { parameter_id, values } = req.body;
   if (parameter_id === undefined || parameter_id === null) throw new AppError('parameter_id required', 400, 'MISSING_PARAM');
 
@@ -347,7 +403,7 @@ app.post('/api/device/:type/:sn/settings', asyncHandler(async (req, res) => {
 
 // Datalogger info
 app.get('/api/device/:sn/datalogger', asyncHandler(async (req, res) => {
-  const sn = req.params.sn;
+  const sn = validateDeviceSn(req.params.sn);
   const r = await legacyGet('commonDeviceSetC/setDatalog', { type: 'server', datalogSn: sn });
   if (r.isHtml && r.raw) {
     const parsed = extractEmbeddedJson(r.raw, 'datalog');
