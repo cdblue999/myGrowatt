@@ -61,6 +61,21 @@ window.addEventListener('unhandledrejection', (e) => {
   globalOnError(e.reason);
 });
 
+// === Auth check ===
+async function checkAuth() {
+  try {
+    const data = await api('/api/auth/status');
+    if (!data.loggedIn) {
+      window.location.href = '/login.html';
+      return false;
+    }
+    return true;
+  } catch {
+    window.location.href = '/login.html';
+    return false;
+  }
+}
+
 // === Internationalization ===
 const LANG = {
   pl: {
@@ -76,6 +91,7 @@ const LANG = {
     refreshBtnTitle: 'Odśwież wszystkie dane',
     refreshBtnText: 'Odśwież',
     prosumerBtnTitle: 'Informacje o rozliczeniach prosumenta',
+    logoutBtnTitle: 'Wyloguj się',
     loading: 'Ładowanie...',
     loadingPlants: 'Ładowanie plantacji...',
     loadingPlant: 'Ładowanie szczegółów...',
@@ -235,6 +251,7 @@ const LANG = {
     refreshBtnTitle: 'Refresh all data',
     refreshBtnText: 'Refresh',
     prosumerBtnTitle: 'Polish prosumer billing info',
+    logoutBtnTitle: 'Sign out',
     loading: 'Loading...',
     loadingPlants: 'Loading your plants...',
     loadingPlant: 'Loading plant details...',
@@ -488,9 +505,13 @@ function renderProsumerModal() {
   `;
 }
 
-initLang();
-loadAccount();
-loadDashboard();
+checkAuth().then(ok => {
+  if (ok) {
+    initLang();
+    loadAccount();
+    loadDashboard();
+  }
+});
 
 async function loadAccount() {
   try {
@@ -499,6 +520,16 @@ async function loadAccount() {
   } catch {
     // Silently fail - account name is optional
   }
+  // Show logout button when fully loaded
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.style.display = '';
+}
+
+async function logout() {
+  try {
+    await api('/api/auth/logout', { method: 'POST' });
+  } catch {}
+  window.location.href = '/login.html';
 }
 
 async function loadDashboard() {

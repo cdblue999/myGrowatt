@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>myGrowatt - Logowanie</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0f0f1a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.login-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+}
+.login-card {
+  background: #1e1e32;
+  border: 1px solid #2a2a45;
+  border-radius: 16px;
+  padding: 40px 32px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.login-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.login-logo svg {
+  width: 40px;
+  height: 40px;
+}
+.login-logo h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #e0e0e0;
+  margin: 0;
+}
+.login-subtitle {
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+  margin-bottom: 28px;
+}
+.form-group {
+  margin-bottom: 18px;
+}
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.form-group input {
+  width: 100%;
+  padding: 12px 14px;
+  background: #16162a;
+  border: 1px solid #2a2a45;
+  border-radius: 10px;
+  color: #e0e0e0;
+  font-size: 15px;
+  outline: none;
+  transition: border 0.2s;
+  box-sizing: border-box;
+}
+.form-group input:focus {
+  border-color: #f5c842;
+}
+.form-group input::placeholder {
+  color: #555;
+}
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: #f5c842;
+  color: #0f0f1a;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.login-btn:hover {
+  background: #e6b52e;
+}
+.login-btn:active {
+  transform: scale(0.98);
+}
+.login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.login-btn.secondary {
+  background: transparent;
+  border: 1px solid #3a3a55;
+  color: #aaa;
+  margin-top: 8px;
+}
+.login-btn.secondary:hover {
+  border-color: #f5c842;
+  color: #e0e0e0;
+}
+.login-error {
+  background: rgba(255, 80, 80, 0.12);
+  border: 1px solid rgba(255, 80, 80, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #ff6b6b;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+}
+.login-error.show {
+  display: block;
+}
+.login-info {
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+  margin-top: 20px;
+}
+.login-step-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.login-step {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2a2a45;
+  transition: background 0.3s;
+}
+.login-step.active {
+  background: #f5c842;
+}
+.login-step.done {
+  background: #4a9e5f;
+}
+#step-password, #step-setup {
+  display: none;
+}
+#step-email { display: block; }
+.step-title {
+  text-align: center;
+  color: #ccc;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+.password-toggle {
+  position: relative;
+}
+.password-toggle .toggle-vis {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 13px;
+}
+.password-toggle .toggle-vis:hover {
+  color: #aaa;
+}
+</style>
+</head>
+<body>
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="22" stroke="#f5c842" stroke-width="2"/>
+        <path d="M24 6L36 30H12L24 6Z" fill="#f5c842" opacity="0.8"/>
+        <path d="M20 30h8v10h-8z" fill="#f5c842" opacity="0.6"/>
+      </svg>
+      <h1>myGrowatt</h1>
+    </div>
+    <p class="login-subtitle">Monitorowanie PV</p>
+
+    <div class="login-step-indicator">
+      <div class="login-step active" id="step-dot-1"></div>
+      <div class="login-step" id="step-dot-2"></div>
+    </div>
+
+    <div id="login-error" class="login-error"></div>
+
+    <!-- Step 1: Email -->
+    <div id="step-email">
+      <p class="step-title">Zaloguj się do swojego panelu</p>
+      <div class="form-group">
+        <label for="email-input">Adres e-mail</label>
+        <input type="email" id="email-input" placeholder="twoj@email.pl" autocomplete="email" autofocus>
+      </div>
+      <button class="login-btn" id="email-next-btn">Dalej</button>
+      <p class="login-info">Tylko dla autoryzowanych użytkowników</p>
+    </div>
+
+    <!-- Step 2a: Login with password -->
+    <div id="step-password">
+      <p class="step-title">Wpisz hasło</p>
+      <p style="color:#888;font-size:13px;text-align:center;margin:-12px 0 16px" id="password-email-display"></p>
+      <div class="form-group">
+        <label for="password-input">Hasło</label>
+        <div class="password-toggle">
+          <input type="password" id="password-input" placeholder="Hasło" autocomplete="current-password">
+          <button class="toggle-vis" id="toggle-pw-vis" type="button">pokaż</button>
+        </div>
+      </div>
+      <button class="login-btn" id="password-login-btn">Zaloguj się</button>
+      <button class="login-btn secondary" id="password-back-btn">← Inny adres</button>
+    </div>
+
+    <!-- Step 2b: Set password (first time) -->
+    <div id="step-setup">
+      <p class="step-title">Ustaw hasło</p>
+      <p style="color:#888;font-size:13px;text-align:center;margin:-12px 0 16px">Pierwsze logowanie — utwórz hasło dla <strong id="setup-email-display" style="color:#f5c842"></strong></p>
+      <div class="form-group">
+        <label for="new-password-input">Nowe hasło</label>
+        <div class="password-toggle">
+          <input type="password" id="new-password-input" placeholder="Co najmniej 6 znaków" autocomplete="new-password">
+          <button class="toggle-vis" id="toggle-new-pw-vis" type="button">pokaż</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="confirm-password-input">Potwierdź hasło</label>
+        <div class="password-toggle">
+          <input type="password" id="confirm-password-input" placeholder="Powtórz hasło" autocomplete="new-password">
+          <button class="toggle-vis" id="toggle-conf-pw-vis" type="button">pokaż</button>
+        </div>
+      </div>
+      <button class="login-btn" id="setup-btn">Utwórz hasło i zaloguj</button>
+      <button class="login-btn secondary" id="setup-back-btn">← Inny adres</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const emailInput = document.getElementById('email-input');
+const emailNextBtn = document.getElementById('email-next-btn');
+const passwordInput = document.getElementById('password-input');
+const passwordLoginBtn = document.getElementById('password-login-btn');
+const newPasswordInput = document.getElementById('new-password-input');
+const confirmPasswordInput = document.getElementById('confirm-password-input');
+const setupBtn = document.getElementById('setup-btn');
+const loginError = document.getElementById('login-error');
+const stepEmail = document.getElementById('step-email');
+const stepPassword = document.getElementById('step-password');
+const stepSetup = document.getElementById('step-setup');
+const passwordEmailDisplay = document.getElementById('password-email-display');
+const setupEmailDisplay = document.getElementById('setup-email-display');
+const dot1 = document.getElementById('step-dot-1');
+const dot2 = document.getElementById('step-dot-2');
+const togglePwVis = document.getElementById('toggle-pw-vis');
+const toggleNewPwVis = document.getElementById('toggle-new-pw-vis');
+const toggleConfPwVis = document.getElementById('toggle-conf-pw-vis');
+
+let currentEmail = '';
+
+function showError(msg) {
+  loginError.textContent = msg;
+  loginError.classList.add('show');
+}
+function hideError() {
+  loginError.textContent = '';
+  loginError.classList.remove('show');
+}
+function showStep(step) {
+  stepEmail.style.display = 'none';
+  stepPassword.style.display = 'none';
+  stepSetup.style.display = 'none';
+  if (step === 'email') {
+    stepEmail.style.display = 'block';
+    dot1.className = 'login-step active';
+    dot2.className = 'login-step';
+    emailInput.focus();
+  } else if (step === 'password') {
+    stepPassword.style.display = 'block';
+    dot1.className = 'login-step done';
+    dot2.className = 'login-step active';
+    passwordInput.focus();
+  } else if (step === 'setup') {
+    stepSetup.style.display = 'block';
+    dot1.className = 'login-step done';
+    dot2.className = 'login-step active';
+    newPasswordInput.focus();
+  }
+  hideError();
+}
+
+function toggleVis(btn, input) {
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = 'ukryj';
+  } else {
+    input.type = 'password';
+    btn.textContent = 'pokaż';
+  }
+}
+togglePwVis.addEventListener('click', () => toggleVis(togglePwVis, passwordInput));
+toggleNewPwVis.addEventListener('click', () => toggleVis(toggleNewPwVis, newPasswordInput));
+toggleConfPwVis.addEventListener('click', () => toggleVis(toggleConfPwVis, confirmPasswordInput));
+
+// Enter key navigation
+emailInput.addEventListener('keydown', e => { if (e.key === 'Enter') emailNextBtn.click(); });
+passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordLoginBtn.click(); });
+newPasswordInput.addEventListener('keydown', e => { if (e.key === 'Enter') setupBtn.click(); });
+confirmPasswordInput.addEventListener('keydown', e => { if (e.key === 'Enter') setupBtn.click(); });
+
+// Step 1: Email → check if password exists
+emailNextBtn.addEventListener('click', async () => {
+  hideError();
+  const email = emailInput.value.trim();
+  if (!email) { showError('Wpisz adres e-mail'); return; }
+
+  emailNextBtn.disabled = true;
+  emailNextBtn.textContent = 'Sprawdzanie...';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      // Already logged in somehow
+      window.location.href = '/';
+      return;
+    }
+
+    if (data.needSetup) {
+      // No password set yet → show setup form
+      currentEmail = email;
+      setupEmailDisplay.textContent = email;
+      showStep('setup');
+    } else if (res.ok && data.email) {
+      // Password exists, show login with password
+      currentEmail = email;
+      passwordEmailDisplay.textContent = email;
+      showStep('password');
+    } else {
+      showError(data.error || 'Nieprawidłowy adres e-mail');
+    }
+  } catch (e) {
+    showError('Błąd połączenia z serwerem');
+  } finally {
+    emailNextBtn.disabled = false;
+    emailNextBtn.textContent = 'Dalej';
+  }
+});
+
+// Step 2: Password login
+passwordLoginBtn.addEventListener('click', async () => {
+  hideError();
+  const password = passwordInput.value;
+  if (!password) { showError('Wpisz hasło'); return; }
+
+  passwordLoginBtn.disabled = true;
+  passwordLoginBtn.textContent = 'Logowanie...';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: currentEmail, password })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      window.location.href = '/';
+    } else {
+      showError(data.error || 'Nieprawidłowe hasło');
+    }
+  } catch (e) {
+    showError('Błąd połączenia z serwerem');
+  } finally {
+    passwordLoginBtn.disabled = false;
+    passwordLoginBtn.textContent = 'Zaloguj się';
+  }
+});
+
+// Step 3: Set password
+setupBtn.addEventListener('click', async () => {
+  hideError();
+  const pw = newPasswordInput.value;
+  const cpw = confirmPasswordInput.value;
+
+  if (!pw || pw.length < 6) { showError('Hasło musi mieć co najmniej 6 znaków'); return; }
+  if (pw !== cpw) { showError('Hasła nie są zgodne'); return; }
+
+  setupBtn.disabled = true;
+  setupBtn.textContent = 'Zapisywanie...';
+
+  try {
+    const res = await fetch('/api/auth/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: currentEmail, password: pw })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      window.location.href = '/';
+    } else {
+      showError(data.error || 'Błąd zapisywania hasła');
+    }
+  } catch (e) {
+    showError('Błąd połączenia z serwerem');
+  } finally {
+    setupBtn.disabled = false;
+    setupBtn.textContent = 'Utwórz hasło i zaloguj';
+  }
+});
+
+// Back buttons
+passwordBackBtn.addEventListener('click', () => { showStep('email'); emailInput.focus(); });
+setupBackBtn.addEventListener('click', () => { showStep('email'); emailInput.focus(); });
+</script>
+</body>
+</html>

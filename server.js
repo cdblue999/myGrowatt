@@ -3,11 +3,13 @@ const express = require('express');
 const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
+const fs = require('fs');
 
 // === Process-level crash protection ===
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] uncaughtException:', err.message, err.stack);
-  // Let process exit (HostingGuru restarts automatically)
 });
 
 process.on('unhandledRejection', (reason) => {
@@ -20,6 +22,31 @@ const TOKEN = process.env.GROWATT_TOKEN;
 const ACCOUNT = process.env.GROWATT_ACCOUNT || '';
 const API_BASE = 'https://openapi.growatt.com/v1';
 const LEGACY_BASE = 'https://openapi.growatt.com';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'myGrowatt-session-' + Date.now();
+const USERS_FILE = path.join(__dirname, '.users.json');
+
+// === User store ===
+function loadUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    }
+  } catch (e) { console.warn('[auth] cannot read users file:', e.message); }
+  return {};
+}
+
+function saveUsers(users) {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  } catch (e) { console.warn('[auth] cannot save users file:', e.message); }
+}
+
+// Pre-create user entry
+let users = loadUsers();
+if (!users['emsolar355@gmail.com']) {
+  users['emsolar355@gmail.com'] = { password: null, createdAt: new Date().toISOString() };
+  saveUsers(users);
+}
 
 class AppError extends Error {
   constructor(message, status = 502, code = 'API_ERROR') {
@@ -40,6 +67,29 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(express.json());
 
+// === Session ===
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 } // 7 days
+}));
+
+// === Auth middleware ===
+const PUBLIC_PATHS = ['/login.html', '/api/auth/', '/health', '/css/', '/js/', '/favicon'];
+app.use((req, res, next) => {
+  // Always allow public paths
+  if (PUBLIC_PATHS.some(p => req.path.startsWith(p) || req.path === p)) return next();
+  // Logged-in users pass through
+  if (req.session && req.session.user) return next();
+  // API calls get 401
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ error: 'Unauthorized', code: 'AUTH_REQUIRED' });
+  }
+  // Everything else redirects to login
+  res.redirect('/login.html');
+});
+
 // API rate limiter — 30 requests per 15 min per IP
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -49,6 +99,59 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests, slow down', code: 'RATE_LIMIT' }
 });
 app.use('/api/', apiLimiter);
+
+// === Auth routes ===
+app.post('/api/auth/login', asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  if (!email) throw new AppError('Email required', 400, 'INVALID_PARAM');
+
+  users = loadUsers();
+  const user = users[email];
+  if (!user) throw new AppError('User not found', 401, 'AUTH_FAILED');
+
+  if (!user.password) {
+    // No password set yet — tell frontend to show setup form
+    return res.json({ needSetup: true, email });
+  }
+
+  if (!password) throw new AppError('Password required', 400, 'INVALID_PARAM');
+
+  const valid = await bcrypt.compare(password, user.password);
+  if (!valid) throw new AppError('Invalid password', 401, 'AUTH_FAILED');
+
+  req.session.user = email;
+  res.json({ success: true, email });
+}));
+
+app.post('/api/auth/setup', asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) throw new AppError('Email and password required', 400, 'INVALID_PARAM');
+  if (password.length < 6) throw new AppError('Password must be at least 6 characters', 400, 'INVALID_PARAM');
+
+  users = loadUsers();
+  const user = users[email];
+  if (!user) throw new AppError('User not found', 401, 'AUTH_FAILED');
+  if (user.password) throw new AppError('Password already set', 400, 'ALREADY_SETUP');
+
+  user.password = await bcrypt.hash(password, 10);
+  saveUsers(users);
+
+  req.session.user = email;
+  res.json({ success: true, email });
+}));
+
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.json({ success: true });
+  });
+});
+
+app.get('/api/auth/status', (req, res) => {
+  if (req.session && req.session.user) {
+    return res.json({ loggedIn: true, email: req.session.user });
+  }
+  res.json({ loggedIn: false });
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -200,7 +303,6 @@ app.get('/api/plant/:id/power', asyncHandler(async (req, res) => {
 app.get('/api/plant/:id/billing', asyncHandler(async (req, res) => {
   const plantId = validatePlantId(req.params.id);
 
-  // Fetch plant details + overview + yearly energy
   const [details, overview, plantsList] = await Promise.all([
     apiGet('/plant/details', { plant_id: plantId }).catch(e => { console.warn('[warn] plant/details failed:', e.message); return {}; }),
     apiGet('/plant/data', { plant_id: plantId }),
@@ -212,7 +314,6 @@ app.get('/api/plant/:id/billing', asyncHandler(async (req, res) => {
   const createDate = plantMeta.create_date || details.create_date || '';
   const totalEnergy = parseFloat(overview.total_energy || 0);
 
-  // Fetch yearly production data (from 2019 to 2035 to cover full contract period)
   const end = new Date();
   const start = new Date('2019-01-01');
   const energyRes = await apiGet('/plant/energy', {
@@ -229,7 +330,6 @@ app.get('/api/plant/:id/billing', asyncHandler(async (req, res) => {
     energy: parseFloat(e.energy) || 0
   }));
 
-  // Determine billing regime
   const installDate = new Date(createDate || '2020-01-01');
   const cutoffDate = new Date('2022-04-01');
   const isNetMetering = installDate < cutoffDate;
@@ -412,7 +512,7 @@ app.get('/api/device/:sn/datalogger', asyncHandler(async (req, res) => {
   res.json(r);
 }));
 
-// Logout (no-op with token)
+// Logout (no-op with token - session logout is handled by /api/auth/logout)
 app.post('/api/logout', (req, res) => {
   res.json({ success: true });
 });
