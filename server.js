@@ -144,6 +144,19 @@ app.post('/api/auth/setup', asyncHandler(async (req, res) => {
   res.json({ success: true, email });
 }));
 
+app.post('/api/auth/reset-password', asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) throw new AppError('Email required', 400, 'INVALID_PARAM');
+
+  users = loadUsers();
+  const user = users[email];
+  if (!user) throw new AppError('User not found', 401, 'AUTH_FAILED');
+
+  user.password = null;
+  saveUsers(users);
+  res.json({ success: true, email });
+}));
+
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => {
     res.json({ success: true });

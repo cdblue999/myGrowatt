@@ -176,6 +176,20 @@ body {
   padding: 4px;
   font-size: 13px;
 }
+.forgot-pw {
+  text-align: center;
+  margin-top: 16px;
+}
+.forgot-pw a {
+  color: #888;
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.forgot-pw a:hover {
+  color: #f5c842;
+  text-decoration: underline;
+}
 .password-toggle .toggle-vis:hover {
   color: #aaa;
 }
@@ -225,6 +239,7 @@ body {
       </div>
       <button class="login-btn" id="password-login-btn">Zaloguj się</button>
       <button class="login-btn secondary" id="password-back-btn">← Inny adres</button>
+      <p class="forgot-pw"><a href="#" id="forgot-pw-link">Nie pamiętasz hasła?</a></p>
     </div>
 
     <!-- Step 2b: Set password (first time) -->
@@ -278,6 +293,9 @@ let currentEmail = '';
 function showError(msg) {
   loginError.textContent = msg;
   loginError.classList.add('show');
+  loginError.style.borderColor = '';
+  loginError.style.background = '';
+  loginError.style.color = '';
 }
 function hideError() {
   loginError.textContent = '';
@@ -396,6 +414,32 @@ passwordLoginBtn.addEventListener('click', async () => {
   } finally {
     passwordLoginBtn.disabled = false;
     passwordLoginBtn.textContent = 'Zaloguj się';
+  }
+});
+
+// Forgot password
+document.getElementById('forgot-pw-link').addEventListener('click', async (e) => {
+  e.preventDefault();
+  hideError();
+  if (!confirm('Czy na pewno chcesz zresetowa\u0107 has\u0142o dla ' + currentEmail + '?\nPo resecie b\u0119dziesz m\u00f3g\u0142 ustawi\u0107 nowe has\u0142o przy logowaniu.')) return;
+  try {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: currentEmail })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStep('email');
+      showError('Has\u0142o zosta\u0142o zresetowane. Ustaw nowe has\u0142o przy logowaniu.');
+      loginError.style.borderColor = 'rgba(74, 158, 95, 0.3)';
+      loginError.style.background = 'rgba(74, 158, 95, 0.12)';
+      loginError.style.color = '#4a9e5f';
+    } else {
+      showError(data.error || 'B\u0142\u0105d resetowania has\u0142a');
+    }
+  } catch (e) {
+    showError('B\u0142\u0105d po\u0142\u0105czenia z serwerem');
   }
 });
 
