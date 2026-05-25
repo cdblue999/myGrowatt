@@ -93,12 +93,12 @@ const LANG = {
     prosumerBtnTitle: 'Informacje o rozliczeniach prosumenta',
     logoutBtnTitle: 'Wyloguj się',
     loading: 'Ładowanie...',
-    loadingPlants: 'Ładowanie plantacji...',
+    loadingPlants: 'Ładowanie instalacji...',
     loadingPlant: 'Ładowanie szczegółów...',
     loadingBilling: 'Ładowanie danych rozliczeniowych...',
     loadingData: 'Ładowanie danych...',
-    yourPlants: 'Twoje plantacje',
-    plants: 'Instalacje PV',
+    yourPlants: 'Moje instalacje PV',
+    plants: 'Moje instalacje PV',
     online: 'Online',
     offline: 'Offline',
     totalKwh: 'Całkowita kWh',
@@ -107,7 +107,7 @@ const LANG = {
     location: 'Lokalizacja',
     plantLabel: 'Plantacja',
     retry: 'Ponów',
-    allPlants: 'Wszystkie plantacje',
+    allPlants: 'Wszystkie instalacje',
     name: 'Nazwa',
     totalEnergy: 'Energia całkowita',
     today: 'Dzisiaj',
@@ -115,7 +115,7 @@ const LANG = {
     monthly: 'Miesięcznie',
     yearly: 'Rocznie',
     peakPower: 'Moc szczytowa',
-    plantOverview: 'Przegląd plantacji',
+    plantOverview: 'Przegląd instalacji',
     installedArea: 'Powierzchnia instalacji',
     gridType: 'Rodzaj sieci',
     timezone: 'Strefa czasowa',
@@ -138,7 +138,7 @@ const LANG = {
     day: 'Dzień',
     month: 'Miesiąc',
     year: 'Rok',
-    noDevices: 'Nie znaleziono urządzeń dla tej plantacji.',
+    noDevices: 'Nie znaleziono urządzeń dla tej instalacji.',
     sn: 'SN',
     type: 'Typ',
     datalogger: 'Rejestrator',
@@ -211,7 +211,7 @@ const LANG = {
     fixedPf: 'Stały PF',
     pfCurve: 'Krzywa PF',
     // Errors
-    failedLoadPlants: 'Nie udało się załadować plantacji: ',
+    failedLoadPlants: 'Nie udało się załadować instalacji: ',
     failedLoadPlant: 'Nie udało się załadować szczegółów: ',
     chartUnavailable: 'Dane wykresu niedostępne: ',
     unexpectedError: 'Wystąpił nieoczekiwany błąd',
@@ -425,14 +425,9 @@ function toggleLang() {
   const btn = document.getElementById('lang-btn');
   if (btn) btn.textContent = t('langName');
   translateStatic();
-  // Re-render dynamic content
+  // Re-render all dynamic content with new language
   if (currentPlant) {
-    const activeTab = document.querySelector('.tab.active');
-    if (activeTab) {
-      activeTab.click();
-    } else {
-      loadPlantDetail(currentPlant.id);
-    }
+    loadPlantDetail(currentPlant.id);
   } else {
     loadDashboard();
   }
@@ -1080,32 +1075,38 @@ function escHtml(s) {
 // === Device Settings ===
 let currentDevice = null;
 
-const SETTINGS_GROUPS = {
-  grid: { title: t('gridParams'), keys: ['voltageHighLimit','voltageLowLimit','workingFrequencyMin','workingFrequencyMax','wideVoltageEnable'] },
-  power: { title: t('powerSettings'), keys: ['activeRate','reactiveRate','pf','pfModel'] },
-  system: { title: t('system'), keys: ['timezone','alias','onOff'] }
-};
+function getSettingsGroups() {
+  return {
+    grid: { title: t('gridParams'), keys: ['voltageHighLimit','voltageLowLimit','workingFrequencyMin','workingFrequencyMax','wideVoltageEnable'] },
+    power: { title: t('powerSettings'), keys: ['activeRate','reactiveRate','pf','pfModel'] },
+    system: { title: t('system'), keys: ['timezone','alias','onOff'] }
+  };
+}
 
-const SETTINGS_LABELS = {
-  voltageHighLimit: t('voltageHighLimit'),
-  voltageLowLimit: t('voltageLowLimit'),
-  workingFrequencyMin: t('workingFrequencyMin'),
-  workingFrequencyMax: t('workingFrequencyMax'),
-  wideVoltageEnable: t('wideVoltageEnable'),
-  activeRate: t('activeRate'),
-  reactiveRate: t('reactiveRate'),
-  pf: t('pf'),
-  pfModel: t('pfModel'),
-  timezone: t('timezone'),
-  alias: t('alias'),
-  onOff: t('onOff')
-};
+function getSettingsLabels() {
+  return {
+    voltageHighLimit: t('voltageHighLimit'),
+    voltageLowLimit: t('voltageLowLimit'),
+    workingFrequencyMin: t('workingFrequencyMin'),
+    workingFrequencyMax: t('workingFrequencyMax'),
+    wideVoltageEnable: t('wideVoltageEnable'),
+    activeRate: t('activeRate'),
+    reactiveRate: t('reactiveRate'),
+    pf: t('pf'),
+    pfModel: t('pfModel'),
+    timezone: t('timezone'),
+    alias: t('alias'),
+    onOff: t('onOff')
+  };
+}
 
-const SETTINGS_OPTIONS = {
-  wideVoltageEnable: { 0: t('disabled'), 1: t('enabled') },
-  onOff: { 0: t('off'), 1: t('on') },
-  pfModel: { 0: t('fixedPF'), 1: t('pfCurve') }
-};
+function getSettingsOptions() {
+  return {
+    wideVoltageEnable: { 0: t('disabled'), 1: t('enabled') },
+    onOff: { 0: t('off'), 1: t('on') },
+    pfModel: { 0: t('fixedPF'), 1: t('pfCurve') }
+  };
+}
 
 function openDeviceSettings(type, sn) {
   currentDevice = { type, sn };
@@ -1154,19 +1155,22 @@ function renderDeviceSettings(settings) {
   container.innerHTML = html;
 
   // Editable groups
-  Object.keys(SETTINGS_GROUPS).forEach(groupKey => {
-    const group = SETTINGS_GROUPS[groupKey];
+  const groups = getSettingsGroups();
+  const labels = getSettingsLabels();
+  const options = getSettingsOptions();
+  Object.keys(groups).forEach(groupKey => {
+    const group = groups[groupKey];
     let groupHtml = `<div class="settings-group"><h4>${group.title}</h4>`;
     group.keys.forEach(k => {
       if (settings[k] !== undefined) {
         const val = String(settings[k]);
-        const label = SETTINGS_LABELS[k] || k;
-        const options = SETTINGS_OPTIONS[k];
+        const label = labels[k] || k;
+        const opt = options[k];
         groupHtml += `<div class="setting-row">
           <span class="setting-label">${label}</span>`;
-        if (options) {
+        if (opt) {
           groupHtml += `<select class="setting-input" data-key="${k}">`;
-          Object.entries(options).forEach(([optVal, optLabel]) => {
+          Object.entries(opt).forEach(([optVal, optLabel]) => {
             groupHtml += `<option value="${optVal}"${val === optVal ? ' selected' : ''}>${optLabel}</option>`;
           });
           groupHtml += `</select>`;
