@@ -118,7 +118,7 @@ app.post('/api/auth/login', asyncHandler(async (req, res) => {
     return res.json({ needSetup: true, email });
   }
 
-  if (!password) throw new AppError('Password required', 400, 'INVALID_PARAM');
+  if (!password) return res.json({ needPassword: true, email });
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) throw new AppError('Invalid password', 401, 'AUTH_FAILED');

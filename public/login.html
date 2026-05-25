@@ -353,7 +353,7 @@ emailNextBtn.addEventListener('click', async () => {
       currentEmail = email;
       setupEmailDisplay.textContent = email;
       showStep('setup');
-    } else if (res.ok && data.email) {
+    } else if (data.needPassword) {
       // Password exists, show login with password
       currentEmail = email;
       passwordEmailDisplay.textContent = email;
