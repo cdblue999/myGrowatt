@@ -423,7 +423,7 @@ function toggleLang() {
   currentLang = currentLang === 'pl' ? 'en' : 'pl';
   document.documentElement.lang = currentLang;
   const btn = document.getElementById('lang-btn');
-  if (btn) btn.textContent = t('langAlt');
+  if (btn) btn.textContent = t('langName');
   translateStatic();
   // Re-render dynamic content
   if (currentPlant) {
@@ -445,7 +445,7 @@ function toggleLang() {
 
 function initLang() {
   const langBtn = document.getElementById('lang-btn');
-  if (langBtn) langBtn.textContent = t('langAlt');
+  if (langBtn) langBtn.textContent = t('langName');
   translateStatic();
 }
 
