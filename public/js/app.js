@@ -51,6 +51,161 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
+// === Linked Growatt accounts (multi-account comparison) ===
+function apiExternal(accountId, path) {
+  return api(`/api/external/${accountId}${path}`);
+}
+
+function openAccountsModal() {
+  const modal = document.getElementById('accounts-modal');
+  modal.classList.remove('hidden');
+  loadLinkedAccounts();
+}
+function closeAccountsModal() {
+  document.getElementById('accounts-modal').classList.add('hidden');
+}
+
+async function loadLinkedAccounts() {
+  const list = document.getElementById('accounts-list');
+  try {
+    const accounts = await api('/api/accounts/linked');
+    if (!accounts.length) {
+      list.innerHTML = '<p style="color:#888;font-size:13px;text-align:center">Nie dodano żadnych kont.</p>';
+      return;
+    }
+    list.innerHTML = accounts.map(a => `
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#1a1a30;border:1px solid #3a3a55;border-radius:8px;padding:10px 14px;margin-bottom:8px">
+        <div>
+          <strong style="color:#e0e0e0;font-size:14px">${escHtml(a.label)}</strong>
+          <div style="color:#888;font-size:12px;margin-top:2px">${escHtml(a.email)}</div>
+        </div>
+        <button class="btn-sm" onclick="unlinkAccount('${a.id}')" style="border-color:#e05a5a;color:#e05a5a">Usuń</button>
+      </div>
+    `).join('');
+  } catch (e) {
+    list.innerHTML = '<p style="color:#e05a5a;font-size:13px">Błąd ładowania: ' + escHtml(e.message) + '</p>';
+  }
+}
+
+async function unlinkAccount(id) {
+  if (!confirm('Usunąć to konto?')) return;
+  try {
+    await api('/api/accounts/link/' + id, { method: 'DELETE' });
+    loadLinkedAccounts();
+    loadExternalPlants();
+  } catch (e) {
+    showToast(e.message);
+  }
+}
+
+document.getElementById('link-account-btn')?.addEventListener('click', async () => {
+  const email = document.getElementById('link-email-input').value.trim();
+  const token = document.getElementById('link-token-input').value.trim();
+  const label = document.getElementById('link-label-input').value.trim() || email;
+  const errEl = document.getElementById('link-error');
+  if (!email || !token) {
+    errEl.textContent = 'Email i token są wymagane';
+    errEl.classList.add('show');
+    return;
+  }
+  errEl.classList.remove('show');
+  const btn = document.getElementById('link-account-btn');
+  btn.disabled = true;
+  btn.textContent = 'Weryfikacja...';
+  try {
+    await api('/api/accounts/link', { method: 'POST', body: JSON.stringify({ email, token, label }) });
+    document.getElementById('link-email-input').value = '';
+    document.getElementById('link-token-input').value = '';
+    document.getElementById('link-label-input').value = '';
+    loadLinkedAccounts();
+    loadExternalPlants();
+    showToast('Konto dodane', 'success');
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Dodaj konto';
+  }
+});
+
+async function loadExternalPlants() {
+  const container = document.getElementById('external-plants');
+  if (!container) return;
+  try {
+    const accounts = await api('/api/accounts/linked');
+    if (!accounts.length) { container.innerHTML = ''; return; }
+    let html = '<h3 style="color:#ccc;font-size:16px;margin:24px 0 12px">Inne instalacje PV</h3><div class="plant-cards" id="external-plant-cards">';
+    let hasPlants = false;
+    for (const acct of accounts) {
+      try {
+        const data = await apiExternal(acct.id, '/plants');
+        if (data.plants && data.plants.length) {
+          hasPlants = true;
+          data.plants.forEach(p => {
+            const name = p.name || p.plantName || 'Plant';
+            const energy = parseFloat(p.total_energy || p.eTotal || 0);
+            const isOnline = String(p.status) === '1' || String(p.status) === 'online' || String(p.status) === '0';
+            const statusText = isOnline ? t('online') : t('offline');
+            html += `<div class="plant-card external-plant" data-account="${acct.id}" data-plant="${p.plant_id || p.id}" style="cursor:pointer" onclick="loadExternalPlant('${acct.id}','${p.plant_id || p.id}')">
+              <div class="plant-card-header">
+                <div class="plant-name">${escHtml(name)} <span style="font-size:11px;color:#888">(${escHtml(acct.label)})</span></div>
+                <div class="plant-status ${isOnline ? 'status-online' : 'status-offline'}">${statusText}</div>
+              </div>
+              <div class="plant-card-stats">
+                <div class="plant-stat"><div class="value accent">${fmt(energy)}</div><div class="label">${t('totalKwh')}</div></div>
+                <div class="plant-stat"><div class="value ${p.today_energy ? 'green' : ''}">${fmt(p.today_energy || p.eToday || '—')}</div><div class="label">${t('todayKwh')}</div></div>
+                <div class="plant-stat"><div class="value blue">${fmt(p.peak_power || p.nominalPower || '—')}</div><div class="label">${t('peakPowerKw')}</div></div>
+                <div class="plant-stat"><div class="value purple">${p.city || p.country || '—'}</div><div class="label">${t('location')}</div></div>
+              </div>
+            </div>`;
+          });
+        }
+      } catch (e) { /* skip */ }
+    }
+    html += '</div>';
+    container.innerHTML = hasPlants ? html : '';
+  } catch (e) { /* ignore */ }
+}
+
+async function loadExternalPlant(accountId, plantId) {
+  showLoading(t('loadingPlant'));
+  try {
+    const data = await apiExternal(accountId, `/plant/${plantId}`);
+    currentPlant = { id: plantId, externalAccountId: accountId, externalEmail: data.email, externalLabel: data.label };
+    renderExternalPlantHeader(data);
+    const overviewEl = document.querySelector('#tab-overview');
+    overviewEl.innerHTML = '<div style="text-align:center;padding:40px;color:#888">Dane szczegółowe dostępne tylko dla własnych instalacji.</div>';
+    plantDetail.classList.remove('hidden');
+    plantsOverview.classList.add('hidden');
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    if (overviewEl) overviewEl.classList.add('active');
+  } catch (e) {
+    showToast(t('failedLoadPlant') + e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderExternalPlantHeader(data) {
+  const header = document.getElementById('plant-detail-header');
+  const ov = data.overview || {};
+  const dt = data.details || {};
+  const metrics = [
+    { label: t('name'), value: dt.name || '—', cls: '' },
+    { label: t('totalEnergy'), value: fmt(ov.total_energy) + ' kWh', cls: 'accent' },
+    { label: t('today'), value: fmt(ov.today_energy) + ' kWh', cls: 'green' },
+    { label: t('currentPower'), value: fmt(ov.current_power * 1000) + ' W', cls: 'blue' },
+  ];
+  header.innerHTML = `
+    <div class="plant-header">
+      <div class="plant-header-metrics">
+        ${metrics.map(m => `<div class="metric"><span class="metric-value ${m.cls}">${m.value}</span><span class="metric-label">${m.label}</span></div>`).join('')}
+      </div>
+      <p style="color:#888;font-size:12px;margin-top:8px">Konto: ${escHtml(data.label || data.email)}</p>
+    </div>`;
+}
+
 // Global error handler
 const globalOnError = (err) => {
   if (err && !err._handled) {
@@ -236,7 +391,8 @@ const LANG = {
     prosumerTl202207: 'Wycena po miesięcznej cenie rynkowej',
     prosumerTl202407: 'Wycena po cenach godzinowych (RDN)',
     prosumerSources: 'Źródła oficjalne',
-    prosumerModalClose: '×'
+    prosumerModalClose: '×',
+    linkedAccounts: 'Połączone konta Growatt'
   },
   en: {
     pageTitle: 'myGrowatt - PV Plant Monitor',
@@ -390,7 +546,8 @@ const LANG = {
     prosumerTl202207: 'Monthly market price valuation',
     prosumerTl202407: 'Hourly RDN price valuation',
     prosumerSources: 'Official Sources',
-    prosumerModalClose: '×'
+    prosumerModalClose: '×',
+    linkedAccounts: 'Linked Growatt Accounts'
   }
 };
 
@@ -532,6 +689,7 @@ async function loadDashboard() {
   try {
     const plants = await api('/api/plants');
     renderPlantCards(plants);
+    loadExternalPlants();
   } catch (err) {
     err._handled = true;
     showToast(t('failedLoadPlants') + err.message, 'error', 8000);
@@ -1035,6 +1193,7 @@ backBtn.addEventListener('click', () => {
   plantsOverview.classList.remove('hidden');
   currentPlant = null;
   destroyCharts();
+  loadExternalPlants();
 });
 
 document.querySelectorAll('.tab').forEach(tab => {

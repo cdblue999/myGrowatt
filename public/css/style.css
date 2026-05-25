@@ -142,6 +142,11 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 16px;
 }
+#accounts-btn { margin-right:4px; }
+#accounts-btn:hover svg { fill:#f5c842; }
+.external-plant { border-left:3px solid #f5c842; }
+.link-form-error { background:rgba(255,80,80,0.12); border:1px solid rgba(255,80,80,0.3); border-radius:8px; padding:10px 14px; color:#ff6b6b; font-size:13px; margin-top:10px; display:none; }
+.link-form-error.show { display:block; }
 .plant-card {
   background: var(--bg-card);
   border: 1px solid var(--border);

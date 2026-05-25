@@ -170,6 +170,114 @@ app.get('/api/auth/status', (req, res) => {
   res.json({ loggedIn: false });
 });
 
+// === Linked Growatt accounts (multi-account comparison) ===
+function loadLinkedAccounts() {
+  try {
+    const f = path.join(__dirname, '.linked-accounts.json');
+    if (fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, 'utf8'));
+  } catch (e) { console.warn('[accounts] cannot read linked accounts:', e.message); }
+  return [];
+}
+function saveLinkedAccounts(accounts) {
+  try {
+    fs.writeFileSync(path.join(__dirname, '.linked-accounts.json'), JSON.stringify(accounts, null, 2));
+  } catch (e) { console.warn('[accounts] cannot save linked accounts:', e.message); }
+}
+
+app.get('/api/accounts/linked', (req, res) => {
+  const list = loadLinkedAccounts().map(a => ({ id: a.id, email: a.email, label: a.label }));
+  res.json(list);
+});
+
+app.post('/api/accounts/link', asyncHandler(async (req, res) => {
+  const { email, token, label } = req.body;
+  if (!email || !token) throw new AppError('Email and token required', 400, 'INVALID_PARAM');
+  // Verify token by fetching plants
+  const testHeaders = { token, 'User-Agent': 'myGrowatt/1.0' };
+  const testUrl = API_BASE + '/plant/list';
+  const testRes = await fetch(testUrl, { headers: testHeaders });
+  const testJson = await testRes.json();
+  if (testJson.error_code !== 0) {
+    throw new AppError('Invalid token: ' + (testJson.error_msg || 'API error'), 400, 'INVALID_TOKEN');
+  }
+  const accounts = loadLinkedAccounts();
+  const id = 'ext_' + Date.now().toString(36);
+  accounts.push({ id, email, token, label: label || email, createdAt: new Date().toISOString() });
+  saveLinkedAccounts(accounts);
+  res.json({ success: true, id, email, label: label || email });
+}));
+
+app.delete('/api/accounts/link/:id', asyncHandler(async (req, res) => {
+  let accounts = loadLinkedAccounts();
+  const idx = accounts.findIndex(a => a.id === req.params.id);
+  if (idx === -1) throw new AppError('Account not found', 404, 'NOT_FOUND');
+  accounts.splice(idx, 1);
+  saveLinkedAccounts(accounts);
+  res.json({ success: true });
+}));
+
+// Proxy: fetch plants from a linked account
+app.get('/api/external/:accountId/plants', asyncHandler(async (req, res) => {
+  const accounts = loadLinkedAccounts();
+  const acct = accounts.find(a => a.id === req.params.accountId);
+  if (!acct) throw new AppError('Linked account not found', 404, 'NOT_FOUND');
+  const headers = { token: acct.token, 'User-Agent': 'myGrowatt/1.0' };
+  const data = await (await fetch(API_BASE + '/plant/list', { headers })).json();
+  if (data.error_code !== 0) throw new AppError(data.error_msg || 'API error', 502, String(data.error_code));
+  res.json({ accountId: acct.id, email: acct.email, label: acct.label, plants: data.data && data.data.plants ? data.data.plants : [] });
+}));
+
+// Proxy: fetch plant detail from a linked account
+app.get('/api/external/:accountId/plant/:plantId', asyncHandler(async (req, res) => {
+  const accounts = loadLinkedAccounts();
+  const acct = accounts.find(a => a.id === req.params.accountId);
+  if (!acct) throw new AppError('Linked account not found', 404, 'NOT_FOUND');
+  const headers = { token: acct.token, 'User-Agent': 'myGrowatt/1.0' };
+  const plantId = req.params.plantId;
+  const [details, overview, devices] = await Promise.all([
+    (await fetch(API_BASE + '/plant/details?plant_id=' + plantId, { headers })).json(),
+    (await fetch(API_BASE + '/plant/data?plant_id=' + plantId, { headers })).json(),
+    (await fetch(API_BASE + '/device/list?plant_id=' + plantId + '&page=&perpage=', { headers })).json()
+  ]);
+  res.json({
+    accountId: acct.id,
+    email: acct.email,
+    label: acct.label,
+    details: details.error_code === 0 ? details.data : null,
+    overview: overview.error_code === 0 ? overview.data : null,
+    devices: devices.error_code === 0 ? (devices.data && devices.data.devices ? devices.data.devices : []) : []
+  });
+}));
+
+// Proxy: fetch energy data from a linked account
+app.get('/api/external/:accountId/plant/:plantId/energy/:period', asyncHandler(async (req, res) => {
+  const accounts = loadLinkedAccounts();
+  const acct = accounts.find(a => a.id === req.params.accountId);
+  if (!acct) throw new AppError('Linked account not found', 404, 'NOT_FOUND');
+  const headers = { token: acct.token, 'User-Agent': 'myGrowatt/1.0' };
+  const plantId = req.params.plantId;
+  const cfg = ENERGY_MAP[req.params.period];
+  if (!cfg) throw new AppError('Invalid period', 400, 'INVALID_PARAM');
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - cfg.days);
+  const url = API_BASE + '/plant/energy?plant_id=' + plantId + '&start_date=' + start.toISOString().slice(0, 10) + '&end_date=' + end.toISOString().slice(0, 10) + '&time_unit=' + cfg.time_unit + '&page=1&perpage=100';
+  const data = await (await fetch(url, { headers })).json();
+  res.json(data.error_code === 0 ? data.data : data);
+}));
+
+// Proxy: fetch power data from a linked account
+app.get('/api/external/:accountId/plant/:plantId/power', asyncHandler(async (req, res) => {
+  const accounts = loadLinkedAccounts();
+  const acct = accounts.find(a => a.id === req.params.accountId);
+  if (!acct) throw new AppError('Linked account not found', 404, 'NOT_FOUND');
+  const headers = { token: acct.token, 'User-Agent': 'myGrowatt/1.0' };
+  const plantId = req.params.plantId;
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  const data = await (await fetch(API_BASE + '/plant/power?plant_id=' + plantId + '&date=' + date, { headers })).json();
+  res.json(data.error_code === 0 ? data.data : data);
+}));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 function apiHeaders() {
