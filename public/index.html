@@ -22,8 +22,8 @@
       <div class="topbar-center copyright-header" data-i18n="copyright">Copyright by cdblue999@gmail.com, 2026</div>
       <div class="topbar-right">
         <button id="lang-btn" class="lang-btn" title="Switch language" onclick="toggleLang()">PL</button>
-        <button id="accounts-btn" title="Zarządzaj kontami Growatt" onclick="openAccountsModal()">
-          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/></svg>
+        <button id="accounts-btn" title="Zarządzaj połączonymi kontami" onclick="openAccountsModal()">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/></svg>
         </button>
         <button id="prosumer-btn" data-i18n-title="prosumerBtnTitle">
           <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/></svg>
@@ -104,6 +104,37 @@
   </div>
   <div id="toast-container" class="toast-container"></div>
 </div>
+  <!-- Accounts Modal -->
+  <div id="accounts-modal" class="modal hidden">
+    <div class="modal-overlay" onclick="closeAccounts()"></div>
+    <div class="modal-content" style="max-width:480px">
+      <div class="modal-header">
+        <h3>Połączone konta Growatt</h3>
+        <button class="modal-close" onclick="closeAccounts()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="linked-accounts-list"></div>
+        <div class="link-account-form">
+          <h4>Dodaj konto</h4>
+          <div class="link-field">
+            <label>Email / Login</label>
+            <input type="email" id="link-email" placeholder="growatt@example.com">
+          </div>
+          <div class="link-field">
+            <label>Hasło</label>
+            <input type="password" id="link-password" placeholder="Hasło do konta Growatt">
+          </div>
+          <div class="link-field">
+            <label>Token API (opcjonalnie)</label>
+            <input type="text" id="link-token" placeholder="GROWATT_TOKEN lub zostaw puste">
+          </div>
+          <div id="link-form-error" class="link-form-error"></div>
+          <button class="btn-sm btn-primary" onclick="linkAccount()">Połącz konto</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Prosumer Info Modal -->
   <div id="prosumer-modal" class="modal hidden">
     <div class="modal-overlay" onclick="closeProsumerInfo()"></div>
@@ -159,36 +190,6 @@
   </div>
 
   <script src="js/app.js"></script>
-
-  <!-- Linked Accounts Modal -->
-  <div id="accounts-modal" class="modal hidden">
-    <div class="modal-overlay" onclick="closeAccountsModal()"></div>
-    <div class="modal-content" style="max-width:520px">
-      <div class="modal-header">
-        <h3 data-i18n="linkedAccounts">Połączone konta Growatt</h3>
-        <button class="modal-close" onclick="closeAccountsModal()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div id="accounts-list"></div>
-        <hr style="border-color:#2a2a45;margin:16px 0">
-        <h4 style="color:#ccc;margin:0 0 12px;font-size:14px">Dodaj konto</h4>
-        <div class="form-group">
-          <label for="link-email-input">Email konta Growatt</label>
-          <input type="email" id="link-email-input" placeholder="growatt@email.pl" style="width:100%;padding:10px 12px;background:#1a1a30;border:1px solid #3a3a55;border-radius:6px;color:#e0e0e0;font-size:14px;box-sizing:border-box">
-        </div>
-        <div class="form-group" style="margin-top:10px">
-          <label for="link-token-input">Token API (z growatt.com)</label>
-          <input type="text" id="link-token-input" placeholder="Token Growatt" style="width:100%;padding:10px 12px;background:#1a1a30;border:1px solid #3a3a55;border-radius:6px;color:#e0e0e0;font-size:14px;box-sizing:border-box">
-        </div>
-        <div class="form-group" style="margin-top:10px">
-          <label for="link-label-input">Etykieta (np. 'Dom rodziców')</label>
-          <input type="text" id="link-label-input" placeholder="Nazwa instalacji" style="width:100%;padding:10px 12px;background:#1a1a30;border:1px solid #3a3a55;border-radius:6px;color:#e0e0e0;font-size:14px;box-sizing:border-box">
-        </div>
-        <div id="link-error" class="link-form-error"></div>
-        <button class="login-btn" id="link-account-btn" style="margin-top:12px;width:100%">Dodaj konto</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Device Settings Modal -->
   <div id="settings-modal" class="modal hidden">

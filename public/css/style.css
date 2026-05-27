@@ -604,6 +604,34 @@ body {
 .lang-btn { padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-dim); cursor: pointer; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.5px; transition: all var(--transition); min-width: 36px; text-align: center; }
 .lang-btn:hover { background: var(--bg-card-hover); border-color: var(--accent-dim); color: var(--accent); }
 
+/* === Accounts Button === */
+#accounts-btn { padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; transition: all var(--transition); }
+#accounts-btn:hover { background: var(--bg-card-hover); border-color: var(--accent-dim); color: var(--accent); }
+
+/* === Accounts Modal === */
+.linked-account-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; }
+.linked-account-info { flex: 1; min-width: 0; }
+.linked-account-info strong { display: block; font-size: 0.9rem; }
+.linked-account-info .linked-account-email { font-size: 0.78rem; color: var(--text-dim); }
+.linked-account-plants { font-size: 0.82rem; color: var(--text-dim); white-space: nowrap; }
+.link-account-form { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.link-account-form h4 { font-size: 0.85rem; color: var(--accent); margin-bottom: 12px; }
+.link-field { margin-bottom: 10px; }
+.link-field label { display: block; font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; font-weight: 600; }
+.link-field input { width: 100%; padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 0.9rem; transition: border-color var(--transition); }
+.link-field input:focus { outline: none; border-color: var(--accent); }
+.link-form-error { display: none; background: rgba(255,80,80,0.12); border: 1px solid rgba(255,80,80,0.3); border-radius: var(--radius-sm); padding: 10px 14px; color: #ff6b6b; font-size: 0.85rem; margin-bottom: 10px; }
+.link-form-error.show { display: block; }
+.btn-danger { padding: 6px 12px; border: 1px solid rgba(248,113,113,0.3); border-radius: var(--radius-sm); background: transparent; color: var(--red); font-size: 0.8rem; cursor: pointer; transition: all var(--transition); white-space: nowrap; }
+.btn-danger:hover { background: rgba(248,113,113,0.1); border-color: var(--red); }
+
+/* === External Plants Section === */
+.external-section { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
+.external-section h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+.external-section .subtitle { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 16px; }
+.external-plant { border-left: 3px solid var(--accent); }
+.external-plant .plant-card-header .plant-name::before { content: '↗ '; font-size: 0.8rem; opacity: 0.6; }
+
 /* === Prosumer Button === */
 #prosumer-btn { padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; transition: all var(--transition); }
 #prosumer-btn:hover { background: var(--bg-card-hover); border-color: var(--accent-dim); color: var(--accent); }

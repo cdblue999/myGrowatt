@@ -1436,3 +1436,101 @@ async function saveDeviceSettings(e) {
     btn.textContent = t('saveSettings');
   }
 }
+
+// === Linked Accounts Management ===
+async function openAccounts() {
+  document.getElementById('accounts-modal').classList.remove('hidden');
+  await loadLinkedAccounts();
+}
+
+function closeAccounts() {
+  document.getElementById('accounts-modal').classList.add('hidden');
+  document.getElementById('link-form-error').classList.remove('show');
+}
+
+async function loadLinkedAccounts() {
+  try {
+    const data = await api('/api/accounts/linked');
+    renderLinkedAccounts(data || []);
+  } catch (err) {
+    err._handled = true;
+    showToast('Nie udało się załadować połączonych kont: ' + err.message, 'error', 6000);
+  }
+}
+
+function renderLinkedAccounts(accounts) {
+  const list = document.getElementById('linked-accounts-list');
+  if (!accounts || accounts.length === 0) {
+    list.innerHTML = '<p class="empty-state" style="text-align:center;padding:20px 0;">Brak połączonych kont. Dodaj konto poniżej, aby porównywać instalacje z wielu kont Growatt.</p>';
+    return;
+  }
+  list.innerHTML = accounts.map(a => `
+    <div class="linked-account-item">
+      <div class="linked-account-info">
+        <strong>${escHtml(a.label || a.email || 'Unknown')}</strong>
+        <span class="linked-account-email">${escHtml(a.email || '')} — ${a.method === 'token' ? 'token API' : 'hasło'}</span>
+      </div>
+      <button class="btn-danger" onclick="unlinkAccount('${escHtml(a.id)}')">Odłącz</button>
+    </div>
+  `).join('');
+}
+
+async function linkAccount() {
+  const email = document.getElementById('link-email').value.trim();
+  const password = document.getElementById('link-password').value.trim();
+  const token = document.getElementById('link-token').value.trim();
+  const errorEl = document.getElementById('link-form-error');
+
+  if (!email) {
+    errorEl.textContent = 'Email jest wymagany';
+    errorEl.classList.add('show');
+    return;
+  }
+  if (!password && !token) {
+    errorEl.textContent = 'Hasło lub token API jest wymagany';
+    errorEl.classList.add('show');
+    return;
+  }
+
+  errorEl.classList.remove('show');
+
+  try {
+    await api('/api/accounts/link', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        password: password || undefined,
+        token: token || undefined
+      })
+    });
+    showToast('Konto połączone pomyślnie', 'success', 3000);
+    document.getElementById('link-email').value = '';
+    document.getElementById('link-password').value = '';
+    document.getElementById('link-token').value = '';
+    await loadLinkedAccounts();
+    // Refresh dashboard to include external plants
+    if (currentPlant) {
+      loadPlantDetail(currentPlant.id);
+    } else {
+      loadDashboard();
+    }
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('show');
+  }
+}
+
+async function unlinkAccount(accountId) {
+  try {
+    await api(`/api/accounts/link/${accountId}`, { method: 'DELETE' });
+    showToast('Konto odłączone', 'success', 3000);
+    await loadLinkedAccounts();
+    if (currentPlant) {
+      loadPlantDetail(currentPlant.id);
+    } else {
+      loadDashboard();
+    }
+  } catch (err) {
+    showToast('Nie udało się odłączyć konta: ' + err.message, 'error', 5000);
+  }
+}

@@ -18,7 +18,7 @@ body {
 }
 .login-container {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   padding: 20px;
 }
 .login-card {
@@ -103,16 +103,6 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.login-btn.secondary {
-  background: transparent;
-  border: 1px solid #3a3a55;
-  color: #aaa;
-  margin-top: 8px;
-}
-.login-btn.secondary:hover {
-  border-color: #f5c842;
-  color: #e0e0e0;
-}
 .login-error {
   background: rgba(255, 80, 80, 0.12);
   border: 1px solid rgba(255, 80, 80, 0.3);
@@ -132,66 +122,12 @@ body {
   font-size: 12px;
   margin-top: 20px;
 }
-.login-step-indicator {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-.login-step {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #2a2a45;
-  transition: background 0.3s;
-}
-.login-step.active {
-  background: #f5c842;
-}
-.login-step.done {
-  background: #4a9e5f;
-}
-#step-password, #step-setup {
-  display: none;
-}
-#step-email { display: block; }
-.step-title {
+.api-key-note {
   text-align: center;
-  color: #ccc;
-  font-size: 14px;
-  margin-bottom: 20px;
-}
-.password-toggle {
-  position: relative;
-}
-.password-toggle .toggle-vis {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #666;
-  cursor: pointer;
-  padding: 4px;
-  font-size: 13px;
-}
-.forgot-pw {
-  text-align: center;
-  margin-top: 16px;
-}
-.forgot-pw a {
-  color: #888;
-  font-size: 12px;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-.forgot-pw a:hover {
-  color: #f5c842;
-  text-decoration: underline;
-}
-.password-toggle .toggle-vis:hover {
-  color: #aaa;
+  color: #555;
+  font-size: 11px;
+  margin: -12px 0 16px;
+  line-height: 1.4;
 }
 </style>
 </head>
@@ -208,277 +144,91 @@ body {
     </div>
     <p class="login-subtitle">Monitorowanie PV</p>
 
-    <div class="login-step-indicator">
-      <div class="login-step active" id="step-dot-1"></div>
-      <div class="login-step" id="step-dot-2"></div>
-    </div>
-
     <div id="login-error" class="login-error"></div>
 
-    <!-- Step 1: Email -->
-    <div id="step-email">
-      <p class="step-title">Zaloguj się do swojego panelu</p>
+    <form id="login-form" autocomplete="on">
       <div class="form-group">
-        <label for="email-input">Adres e-mail</label>
-        <input type="email" id="email-input" placeholder="twoj@email.pl" autocomplete="email" autofocus>
+        <label for="email-input">Adres e-mail (Growatt)</label>
+        <input type="email" id="email-input" placeholder="twoj@email.pl" autocomplete="email" autofocus required>
       </div>
-      <button class="login-btn" id="email-next-btn">Dalej</button>
-      <p class="login-info">Tylko dla autoryzowanych użytkowników</p>
-    </div>
 
-    <!-- Step 2a: Login with password -->
-    <div id="step-password">
-      <p class="step-title">Wpisz hasło</p>
-      <p style="color:#888;font-size:13px;text-align:center;margin:-12px 0 16px" id="password-email-display"></p>
       <div class="form-group">
-        <label for="password-input">Hasło</label>
-        <div class="password-toggle">
-          <input type="password" id="password-input" placeholder="Hasło" autocomplete="current-password">
-          <button class="toggle-vis" id="toggle-pw-vis" type="button">pokaż</button>
-        </div>
+        <label for="password-input">Hasło (Growatt)</label>
+        <input type="password" id="password-input" placeholder="Hasło do server.growatt.com" autocomplete="current-password" required>
       </div>
-      <button class="login-btn" id="password-login-btn">Zaloguj się</button>
-      <button class="login-btn secondary" id="password-back-btn">← Inny adres</button>
-      <p class="forgot-pw"><a href="#" id="forgot-pw-link">Nie pamiętasz hasła?</a></p>
-    </div>
 
-    <!-- Step 2b: Set password (first time) -->
-    <div id="step-setup">
-      <p class="step-title">Ustaw hasło</p>
-      <p style="color:#888;font-size:13px;text-align:center;margin:-12px 0 16px">Pierwsze logowanie — utwórz hasło dla <strong id="setup-email-display" style="color:#f5c842"></strong></p>
       <div class="form-group">
-        <label for="new-password-input">Nowe hasło</label>
-        <div class="password-toggle">
-          <input type="password" id="new-password-input" placeholder="Co najmniej 6 znaków" autocomplete="new-password">
-          <button class="toggle-vis" id="toggle-new-pw-vis" type="button">pokaż</button>
-        </div>
+        <label for="api-key-input">Klucz API Growatt <span style="color:#666;font-weight:400">(opcjonalnie)</span></label>
+        <input type="text" id="api-key-input" placeholder="Token OpenAPI — tylko dla zaawansowanych" autocomplete="off">
       </div>
-      <div class="form-group">
-        <label for="confirm-password-input">Potwierdź hasło</label>
-        <div class="password-toggle">
-          <input type="password" id="confirm-password-input" placeholder="Powtórz hasło" autocomplete="new-password">
-          <button class="toggle-vis" id="toggle-conf-pw-vis" type="button">pokaż</button>
-        </div>
-      </div>
-      <button class="login-btn" id="setup-btn">Utwórz hasło i zaloguj</button>
-      <button class="login-btn secondary" id="setup-back-btn">← Inny adres</button>
-    </div>
+      <p class="api-key-note">Klucz API jest opcjonalny. Bez niego większość funkcji działa przez standardowe logowanie.</p>
+
+      <button type="submit" class="login-btn" id="login-btn">Zaloguj się</button>
+      <p class="login-info">Logowanie przez server.growatt.com</p>
+    </form>
   </div>
 </div>
 
 <script>
 const emailInput = document.getElementById('email-input');
-const emailNextBtn = document.getElementById('email-next-btn');
 const passwordInput = document.getElementById('password-input');
-const passwordLoginBtn = document.getElementById('password-login-btn');
-const newPasswordInput = document.getElementById('new-password-input');
-const confirmPasswordInput = document.getElementById('confirm-password-input');
-const setupBtn = document.getElementById('setup-btn');
+const apiKeyInput = document.getElementById('api-key-input');
+const loginBtn = document.getElementById('login-btn');
 const loginError = document.getElementById('login-error');
-const stepEmail = document.getElementById('step-email');
-const stepPassword = document.getElementById('step-password');
-const stepSetup = document.getElementById('step-setup');
-const passwordEmailDisplay = document.getElementById('password-email-display');
-const setupEmailDisplay = document.getElementById('setup-email-display');
-const dot1 = document.getElementById('step-dot-1');
-const dot2 = document.getElementById('step-dot-2');
-const togglePwVis = document.getElementById('toggle-pw-vis');
-const toggleNewPwVis = document.getElementById('toggle-new-pw-vis');
-const toggleConfPwVis = document.getElementById('toggle-conf-pw-vis');
-const passwordBackBtn = document.getElementById('password-back-btn');
-const setupBackBtn = document.getElementById('setup-back-btn');
-
-let currentEmail = '';
+const loginForm = document.getElementById('login-form');
 
 function showError(msg) {
   loginError.textContent = msg;
   loginError.classList.add('show');
-  loginError.style.borderColor = '';
-  loginError.style.background = '';
-  loginError.style.color = '';
 }
 function hideError() {
   loginError.textContent = '';
   loginError.classList.remove('show');
 }
-function showStep(step) {
-  stepEmail.style.display = 'none';
-  stepPassword.style.display = 'none';
-  stepSetup.style.display = 'none';
-  if (step === 'email') {
-    stepEmail.style.display = 'block';
-    dot1.className = 'login-step active';
-    dot2.className = 'login-step';
-    emailInput.focus();
-  } else if (step === 'password') {
-    stepPassword.style.display = 'block';
-    dot1.className = 'login-step done';
-    dot2.className = 'login-step active';
-    passwordInput.focus();
-  } else if (step === 'setup') {
-    stepSetup.style.display = 'block';
-    dot1.className = 'login-step done';
-    dot2.className = 'login-step active';
-    newPasswordInput.focus();
-  }
-  hideError();
-}
 
-function toggleVis(btn, input) {
-  if (input.type === 'password') {
-    input.type = 'text';
-    btn.textContent = 'ukryj';
-  } else {
-    input.type = 'password';
-    btn.textContent = 'pokaż';
-  }
-}
-togglePwVis.addEventListener('click', () => toggleVis(togglePwVis, passwordInput));
-toggleNewPwVis.addEventListener('click', () => toggleVis(toggleNewPwVis, newPasswordInput));
-toggleConfPwVis.addEventListener('click', () => toggleVis(toggleConfPwVis, confirmPasswordInput));
-
-// Enter key navigation
-emailInput.addEventListener('keydown', e => { if (e.key === 'Enter') emailNextBtn.click(); });
-passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordLoginBtn.click(); });
-newPasswordInput.addEventListener('keydown', e => { if (e.key === 'Enter') setupBtn.click(); });
-confirmPasswordInput.addEventListener('keydown', e => { if (e.key === 'Enter') setupBtn.click(); });
-
-// Step 1: Email → check if password exists
-emailNextBtn.addEventListener('click', async () => {
-  hideError();
-  const email = emailInput.value.trim();
-  if (!email) { showError('Wpisz adres e-mail'); return; }
-
-  emailNextBtn.disabled = true;
-  emailNextBtn.textContent = 'Sprawdzanie...';
-
+// Already logged in?  Redirect straight away.
+(async () => {
   try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    const data = await res.json();
+    const r = await fetch('/api/auth/status');
+    const d = await r.json();
+    if (d.loggedIn) window.location.href = '/';
+  } catch {}
+})();
 
-    if (data.success) {
-      // Already logged in somehow
-      window.location.href = '/';
-      return;
-    }
-
-    if (data.needSetup) {
-      // No password set yet → show setup form
-      currentEmail = email;
-      setupEmailDisplay.textContent = email;
-      showStep('setup');
-    } else if (data.needPassword) {
-      // Password exists, show login with password
-      currentEmail = email;
-      passwordEmailDisplay.textContent = email;
-      showStep('password');
-    } else {
-      showError(data.error || 'Nieprawidłowy adres e-mail');
-    }
-  } catch (e) {
-    showError('Błąd połączenia z serwerem');
-  } finally {
-    emailNextBtn.disabled = false;
-    emailNextBtn.textContent = 'Dalej';
-  }
-});
-
-// Step 2: Password login
-passwordLoginBtn.addEventListener('click', async () => {
-  hideError();
-  const password = passwordInput.value;
-  if (!password) { showError('Wpisz hasło'); return; }
-
-  passwordLoginBtn.disabled = true;
-  passwordLoginBtn.textContent = 'Logowanie...';
-
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: currentEmail, password })
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      window.location.href = '/';
-    } else {
-      showError(data.error || 'Nieprawidłowe hasło');
-    }
-  } catch (e) {
-    showError('Błąd połączenia z serwerem');
-  } finally {
-    passwordLoginBtn.disabled = false;
-    passwordLoginBtn.textContent = 'Zaloguj się';
-  }
-});
-
-// Forgot password
-document.getElementById('forgot-pw-link').addEventListener('click', async (e) => {
+loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   hideError();
-  if (!confirm('Czy na pewno chcesz zresetowa\u0107 has\u0142o dla ' + currentEmail + '?\nPo resecie b\u0119dziesz m\u00f3g\u0142 ustawi\u0107 nowe has\u0142o przy logowaniu.')) return;
-  try {
-    const res = await fetch('/api/auth/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: currentEmail })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showStep('email');
-      showError('Has\u0142o zosta\u0142o zresetowane. Ustaw nowe has\u0142o przy logowaniu.');
-      loginError.style.borderColor = 'rgba(74, 158, 95, 0.3)';
-      loginError.style.background = 'rgba(74, 158, 95, 0.12)';
-      loginError.style.color = '#4a9e5f';
-    } else {
-      showError(data.error || 'B\u0142\u0105d resetowania has\u0142a');
-    }
-  } catch (e) {
-    showError('B\u0142\u0105d po\u0142\u0105czenia z serwerem');
-  }
-});
 
-// Step 3: Set password
-setupBtn.addEventListener('click', async () => {
-  hideError();
-  const pw = newPasswordInput.value;
-  const cpw = confirmPasswordInput.value;
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  const apiKey = apiKeyInput.value.trim() || undefined;
 
-  if (!pw || pw.length < 6) { showError('Hasło musi mieć co najmniej 6 znaków'); return; }
-  if (pw !== cpw) { showError('Hasła nie są zgodne'); return; }
+  if (!email) { showError('Wpisz adres e-mail'); return; }
+  if (!password) { showError('Wpisz hasło'); return; }
 
-  setupBtn.disabled = true;
-  setupBtn.textContent = 'Zapisywanie...';
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Logowanie...';
 
   try {
-    const res = await fetch('/api/auth/setup', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: currentEmail, password: pw })
+      body: JSON.stringify({ email, password, apiKey }),
     });
     const data = await res.json();
 
     if (data.success) {
       window.location.href = '/';
     } else {
-      showError(data.error || 'Błąd zapisywania hasła');
+      showError(data.error || 'Nieprawidłowe dane logowania');
     }
-  } catch (e) {
+  } catch (err) {
     showError('Błąd połączenia z serwerem');
   } finally {
-    setupBtn.disabled = false;
-    setupBtn.textContent = 'Utwórz hasło i zaloguj';
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Zaloguj się';
   }
 });
-
-// Back buttons
-passwordBackBtn.addEventListener('click', () => { showStep('email'); emailInput.focus(); });
-setupBackBtn.addEventListener('click', () => { showStep('email'); emailInput.focus(); });
 </script>
 </body>
 </html>
