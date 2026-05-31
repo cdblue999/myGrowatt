@@ -3,3 +3,8 @@ npm-debug.log*
 server.log
 server.err
 .env
+build/
+dist/
+*.exe
+__pycache__/
+*.pyc
